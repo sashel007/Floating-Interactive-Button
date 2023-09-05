@@ -1,5 +1,6 @@
 package ru.ikar.floatingbutton_ikar
 
+import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.app.Service
 import android.content.Intent
@@ -18,6 +19,9 @@ class FloatingButtonService() : Service() {
     private var initialTouchX: Float = 0f
     private var initialTouchY: Float = 0f
     private var lastAction: Int? = null
+    private val initialOpacity = 1.0f
+    private val opacity = 0.2f
+    private val opacityDuration = 2500L
 
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -48,6 +52,8 @@ class FloatingButtonService() : Service() {
         floatingButtonLayout.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
+                    // Set button to full opacity when pressed
+                    changeOpacity(initialOpacity)
                     // Initial position
                     initialX = params.x
                     initialY = params.y
@@ -60,6 +66,10 @@ class FloatingButtonService() : Service() {
                     true
                 }
                 MotionEvent.ACTION_UP -> {
+                    // Start a timer to make the button translucent after 3 seconds
+                    floatingButtonLayout.postDelayed({
+                        changeOpacity(opacity) // Adjust this value as you see fit, 0.5f is 50% translucent
+                    }, opacityDuration)
                     lastAction = event.action
                     true
                 }
@@ -78,11 +88,18 @@ class FloatingButtonService() : Service() {
                 }
             }
         }
-
+        changeOpacity(opacity)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         windowManager.removeView(floatingButtonLayout)
+    }
+
+    private fun changeOpacity(toOpacity: Float) {
+        ObjectAnimator.ofFloat(floatingButtonLayout, "alpha", toOpacity).apply {
+            duration = 250  // duration of the transition, you can adjust this
+            start()
+        }
     }
 }
