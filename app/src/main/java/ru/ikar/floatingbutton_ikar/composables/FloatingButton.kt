@@ -164,6 +164,7 @@ fun FloatingButton() {
                                                         context,
                                                         SelectBackgroundActivity::class.java
                                                     )
+                                                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                                     context.startActivity(intent)
                                                 }
 

@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Кнопка IKAR</string>
+    <string name="floating_button_image">Плаваюшая кнопка</string>
 </resources>

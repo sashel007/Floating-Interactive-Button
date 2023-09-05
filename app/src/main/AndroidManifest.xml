@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-    
+
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:allowBackup="true"
@@ -15,7 +16,7 @@
         android:theme="@style/Theme.FloatingButton_IKAR"
         tools:targetApi="31">
         <activity
-            android:name=".FloatingButtonActivity"
+            android:name=".SettingsActivity"
             android:exported="true"
             android:theme="@style/Theme.FloatingButton_IKAR">
             <intent-filter>
@@ -24,9 +25,13 @@
             </intent-filter>
         </activity>
         <service
-            android:name=".FloatingButtonService"
-            android:exported="true"
-            android:permission="WRITE_EXTERNAL_STORAGE">
+            android:name=".FloatingButtonService">
         </service>
+        <receiver android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
