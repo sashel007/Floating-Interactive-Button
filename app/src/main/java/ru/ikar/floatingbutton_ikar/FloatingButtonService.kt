@@ -159,6 +159,7 @@ class FloatingButtonService() : Service() {
         if (isExpanded) {
             // Collapse the buttons
             for (button in buttons) {
+                button.visibility = View.INVISIBLE
                 button.animate()
                     .x(mainButton.x + mainButton.width / 2 - button.width / 2)
                     .y(mainButton.y + mainButton.height / 2 - button.height / 2)
