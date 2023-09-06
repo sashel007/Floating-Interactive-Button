@@ -28,7 +28,7 @@ class FloatingButtonService() : Service() {
     private val opacityDuration = 2500L
     private val radius = 80f
     private var areButtonsVisible = false
-
+    var isExpanded = false // Keeps track of the current state (expanded or collapsed)
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -70,50 +70,51 @@ class FloatingButtonService() : Service() {
 
         windowManager.addView(floatingButtonLayout, params)
 
-        floatingButtonLayout.setOnClickListener {
-            Log.d("FloatingButton", "Main button clicked!")
-            toggleButtonsVisibility(buttons)
-        }
+        // Assuming buttons is a list of your additional buttons.
 
-        floatingButtonLayout.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    // Set button to full opacity when pressed
-                    changeOpacity(initialOpacity)
-                    // Initial position
-                    initialX = params.x
-                    initialY = params.y
+        // Inside your OnClickListener for the main button
+        floatingButtonLayout.setOnClickListener {   toggleButtonsVisibility(buttons,mainButton)     }
 
-                    // Touch point
-                    initialTouchX = event.rawX
-                    initialTouchY = event.rawY
 
-                    lastAction = event.action
-                    true
-                }
-                MotionEvent.ACTION_UP -> {
-                    // Start a timer to make the button translucent after 3 seconds
-                    floatingButtonLayout.postDelayed({
-                        changeOpacity(opacity) // Adjust this value as you see fit, 0.5f is 50% translucent
-                    }, opacityDuration)
-                    lastAction = event.action
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    // Calculate the X and Y coordinates of the view.
-                    params.x = initialX + (event.rawX - initialTouchX).toInt()
-                    params.y = initialY + (event.rawY - initialTouchY).toInt()
-
-                    // Update the layout with new X & Y coordinates
-                    windowManager.updateViewLayout(floatingButtonLayout, params)
-                    lastAction = event.action
-                    true
-                }
-                else -> {
-                    false
-                }
-            }
-        }
+//        floatingButtonLayout.setOnTouchListener { _, event ->
+//            when (event.action) {
+//                MotionEvent.ACTION_DOWN -> {
+//                    // Set button to full opacity when pressed
+//                    changeOpacity(initialOpacity)
+//                    // Initial position
+//                    initialX = params.x
+//                    initialY = params.y
+//
+//                    // Touch point
+//                    initialTouchX = event.rawX
+//                    initialTouchY = event.rawY
+//
+//                    lastAction = event.action
+//                    true
+//                }
+//                MotionEvent.ACTION_UP -> {
+//                    // Start a timer to make the button translucent after 3 seconds
+//                    floatingButtonLayout.postDelayed({
+//                        changeOpacity(opacity) // Adjust this value as you see fit, 0.5f is 50% translucent
+//                    }, opacityDuration)
+//                    lastAction = event.action
+//                    true
+//                }
+//                MotionEvent.ACTION_MOVE -> {
+//                    // Calculate the X and Y coordinates of the view.
+//                    params.x = initialX + (event.rawX - initialTouchX).toInt()
+//                    params.y = initialY + (event.rawY - initialTouchY).toInt()
+//
+//                    // Update the layout with new X & Y coordinates
+//                    windowManager.updateViewLayout(floatingButtonLayout, params)
+//                    lastAction = event.action
+//                    true
+//                }
+//                else -> {
+//                    false
+//                }
+//            }
+//        }
         changeOpacity(opacity)
     }
 
@@ -153,5 +154,49 @@ class FloatingButtonService() : Service() {
         }
         areButtonsVisible = !areButtonsVisible
     }
+
+    fun toggleButtonsVisibility(buttons: List<View>, mainButton: View) {
+        if (isExpanded) {
+            // Collapse the buttons
+            for (button in buttons) {
+                button.animate()
+                    .x(mainButton.x + mainButton.width / 2 - button.width / 2)
+                    .y(mainButton.y + mainButton.height / 2 - button.height / 2)
+                    .setDuration(300) // in milliseconds
+                    .withEndAction { button.visibility = View.INVISIBLE }
+                    .start()
+            }
+        } else {
+            // Expand the buttons
+            for ((index, button) in buttons.withIndex()) {
+                val (finalX, finalY) = calculateFinalPosition(button, mainButton, index, buttons.size)
+                button.x = mainButton.x + mainButton.width / 2 - button.width / 2
+                button.y = mainButton.y + mainButton.height / 2 - button.height / 2
+                button.visibility = View.VISIBLE
+                button.animate()
+                    .x(finalX)
+                    .y(finalY)
+                    .setDuration(300) // in milliseconds
+                    .start()
+            }
+        }
+
+        isExpanded = !isExpanded // Toggle the state
+    }
+
+    fun calculateFinalPosition(button: View, mainButton: View, index: Int, totalButtons: Int): Pair<Float, Float> {
+        val mainButtonCenterX = mainButton.x + mainButton.width / 2
+        val mainButtonCenterY = mainButton.y + mainButton.height / 2
+
+        val angleIncrement = 360.0 / totalButtons
+        val angle = index * angleIncrement * (Math.PI / 180)  // Convert degrees to radians.
+
+        val finalX = (radius * kotlin.math.cos(angle) + mainButtonCenterX).toFloat() - button.width / 2
+        val finalY = (radius * kotlin.math.sin(angle) + mainButtonCenterY).toFloat() - button.height / 2
+
+        return Pair(finalX, finalY)
+    }
+
+
 
 }
