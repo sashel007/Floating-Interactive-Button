@@ -5,11 +5,15 @@ import android.annotation.SuppressLint
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.Button
 import android.widget.FrameLayout
+import java.lang.Math.cos
+import java.lang.Math.sin
 
 class FloatingButtonService() : Service() {
     private lateinit var windowManager: WindowManager
@@ -22,18 +26,31 @@ class FloatingButtonService() : Service() {
     private val initialOpacity = 1.0f
     private val opacity = 0.2f
     private val opacityDuration = 2500L
+    private val radius = 80f
+    private var areButtonsVisible = false
 
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate() {
+
         super.onCreate()
 
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
         floatingButtonLayout =
             LayoutInflater.from(this).inflate(R.layout.floating_button_layout, null) as FrameLayout
+
+        val mainButton = floatingButtonLayout.findViewById<View>(R.id.floating_button)
+        val buttons = listOf(
+            floatingButtonLayout.findViewById<Button>(R.id.settings_button),
+            floatingButtonLayout.findViewById<Button>(R.id.volume_button),
+            floatingButtonLayout.findViewById<Button>(R.id.home_button),
+            floatingButtonLayout.findViewById<Button>(R.id.brightness_button),
+            floatingButtonLayout.findViewById<Button>(R.id.deck_button),
+            floatingButtonLayout.findViewById<Button>(R.id.any_button),
+        )
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -47,7 +64,16 @@ class FloatingButtonService() : Service() {
             android.graphics.PixelFormat.TRANSLUCENT
         )
 
+        floatingButtonLayout.post {
+            positionSurroundingButtons(mainButton, buttons, radius)
+        }
+
         windowManager.addView(floatingButtonLayout, params)
+
+        floatingButtonLayout.setOnClickListener {
+            Log.d("FloatingButton", "Main button clicked!")
+            toggleButtonsVisibility(buttons)
+        }
 
         floatingButtonLayout.setOnTouchListener { _, event ->
             when (event.action) {
@@ -102,4 +128,30 @@ class FloatingButtonService() : Service() {
             start()
         }
     }
+
+    private fun positionSurroundingButtons(mainButton: View, buttons: List<View>, radius: Float) {
+        val mainButtonCenterX = mainButton.x + mainButton.width / 2
+        val mainButtonCenterY = mainButton.y + mainButton.height / 2
+
+        val angleIncrement = 360.0 / buttons.size
+
+        for (i in buttons.indices) {
+            val angle = i * angleIncrement * (Math.PI / 180)  // Convert degrees to radians.
+            val x = (radius * kotlin.math.cos(angle) + mainButtonCenterX).toFloat() - buttons[i].width / 2
+            val y = (radius * kotlin.math.sin(angle) + mainButtonCenterY).toFloat() - buttons[i].height / 2
+
+            buttons[i].x = x
+            buttons[i].y = y
+        }
+    }
+
+
+    private fun toggleButtonsVisibility(buttons: List<View>) {
+        val newVisibility = if (areButtonsVisible) View.INVISIBLE else View.VISIBLE
+        for (button in buttons) {
+            button.visibility = newVisibility
+        }
+        areButtonsVisible = !areButtonsVisible
+    }
+
 }
