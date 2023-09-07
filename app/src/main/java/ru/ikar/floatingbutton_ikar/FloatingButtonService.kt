@@ -287,7 +287,10 @@ class FloatingButtonService() : Service() {
                 Log.d("Button", "Volume clicked")
             }
             2 -> {
-                // Handle home button click
+                val homeIntent = Intent(Intent.ACTION_MAIN)
+                homeIntent.addCategory(Intent.CATEGORY_HOME)
+                homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                startActivity(homeIntent)
                 Log.d("Button", "Home clicked")
             }
             3 -> {
