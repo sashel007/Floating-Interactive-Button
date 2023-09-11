@@ -37,7 +37,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import ru.ikar.floatingbutton_ikar.R
-import ru.ikar.floatingbutton_ikar.ui.theme.SelectBackgroundActivity
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin

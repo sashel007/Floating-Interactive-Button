@@ -40,7 +40,6 @@ class FloatingButtonService() : Service() {
     private lateinit var volumeSlider: SeekBar
     private lateinit var params: WindowManager.LayoutParams
     private lateinit var audioManager: AudioManager
-    private lateinit var layoutParams: WindowManager.LayoutParams
     private val collapseRunnable = Runnable {
         Log.d("CollapseRunnable", "Running collapse")
         if (isExpanded) {
@@ -93,7 +92,8 @@ class FloatingButtonService() : Service() {
                 //старый легаси параметр для перекрытия вьюшки над остальными элементами телефона
                 WindowManager.LayoutParams.TYPE_PHONE
             },
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, // вьюшка не потребялет фокус и не мешает тыкать по остальным элементам экрана Make the view non-focusable
+            // вьюшка не потребялет фокус и не мешает тыкать по остальным элементам экрана
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             android.graphics.PixelFormat.TRANSLUCENT // задаёт параметр полупрозрачности
         )
 
@@ -119,8 +119,10 @@ class FloatingButtonService() : Service() {
                     )
                 }
             }
+
             // Вызывается, когда пользователь начинает трогать ползунок
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+
             // Вызывается, когда пользователь завершает движение пальцем по ползунку.
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
@@ -128,8 +130,8 @@ class FloatingButtonService() : Service() {
         // Настройка слушателя для floatingButtonLayout.
         floatingButtonLayout.setOnClickListener {
             // Переключает видимость окружающих кнопок, когда основная кнопка прожата.
-            toggleButtonsVisibility(buttons,mainButton)
-            Log.d("setOnClickListener","check setOnClickListener")
+            toggleButtonsVisibility(buttons, mainButton)
+            Log.d("setOnClickListener", "check setOnClickListener")
         }
 
         // Настройка onTouchlistener для floatingButtonLayout для обработки касаний.
@@ -166,7 +168,7 @@ class FloatingButtonService() : Service() {
                         hasMoved = false
                         // Сохраняем последнее действие при касании.
                         lastAction = event.action
-                        Log.d("setOnTouchListener","check setOnTouchListener")
+                        Log.d("setOnTouchListener", "check setOnTouchListener")
                         true
                     }
                 }
@@ -178,7 +180,10 @@ class FloatingButtonService() : Service() {
                     }, opacityDuration)
 
                     // Если кнопка не сдвинулась дальше 10 пикселей на любой из осей, то считать это нажатием.
-                    if (!hasMoved && Math.abs(initialTouchX - event.rawX) < 10 && Math.abs(initialTouchY - event.rawY) < 10) {
+                    if (!hasMoved && Math.abs(initialTouchX - event.rawX) < 10 && Math.abs(
+                            initialTouchY - event.rawY
+                        ) < 10
+                    ) {
                         toggleButtonsVisibility(buttons, mainButton)
                         // Отменяем сворачивание.
                         handler.removeCallbacks(collapseRunnable)
@@ -201,9 +206,10 @@ class FloatingButtonService() : Service() {
                     if (Math.abs(initialTouchX - event.rawX) > 10 || Math.abs(initialTouchY - event.rawY) > 10) {
                         hasMoved = true
                     }
-                    Log.d("move across","across___")
+                    Log.d("move across", "across___")
                     true
                 }
+
                 else -> {
                     false
                 }
@@ -233,6 +239,7 @@ class FloatingButtonService() : Service() {
             start()
         }
     }
+
     /**
      * Позиции маленьких (доп.) кнопок по окружности.
      *
@@ -256,8 +263,10 @@ class FloatingButtonService() : Service() {
             val angle = i * angleIncrement * (Math.PI / 180)  // сконвертируем градусы в радианы
 
             // Рассчитаем координаты X/Y для текущей кнопки по углу и радиусу
-            val x = (radius * kotlin.math.cos(angle) + mainButtonCenterX).toFloat() - buttons[i].width / 2
-            val y = (radius * kotlin.math.sin(angle) + mainButtonCenterY).toFloat() - buttons[i].height / 2
+            val x =
+                (radius * kotlin.math.cos(angle) + mainButtonCenterX).toFloat() - buttons[i].width / 2
+            val y =
+                (radius * kotlin.math.sin(angle) + mainButtonCenterY).toFloat() - buttons[i].height / 2
 
             // Установим новую позицию кнопки.
             buttons[i].x = x
@@ -298,7 +307,12 @@ class FloatingButtonService() : Service() {
             // Кнопки уже свёрнуты, надо их развернуть
             for ((index, button) in buttons.withIndex()) {
                 // Рассчитаем последнюю позицию кнопки.
-                val (finalX, finalY) = calculateFinalPosition(button, mainButton, index, buttons.size)
+                val (finalX, finalY) = calculateFinalPosition(
+                    button,
+                    mainButton,
+                    index,
+                    buttons.size
+                )
                 // Установим исходную позицию кнопки в центре основной кнопки
                 button.x = mainButton.x + mainButton.width / 2 - button.width / 2
                 button.y = mainButton.y + mainButton.height / 2 - button.height / 2
@@ -331,13 +345,21 @@ class FloatingButtonService() : Service() {
      * @return Возвращаем Float-значение, в которое вкладываем X/Y координаты кнопок.
      */
 
-    fun calculateFinalPosition(button: View, mainButton: View, index: Int, totalButtons: Int): Pair<Float, Float> {
+    fun calculateFinalPosition(
+        button: View,
+        mainButton: View,
+        index: Int,
+        totalButtons: Int
+    ): Pair<Float, Float> {
         val mainButtonCenterX = mainButton.x + mainButton.width / 2
         val mainButtonCenterY = mainButton.y + mainButton.height / 2
         val angleIncrement = 360.0 / totalButtons
-        val angle = index * angleIncrement * (Math.PI / 180)  // Конвертирует угол из градусов в радианы
-        val finalX = (radius * kotlin.math.cos(angle) + mainButtonCenterX).toFloat() - button.width / 2
-        val finalY = (radius * kotlin.math.sin(angle) + mainButtonCenterY).toFloat() - button.height / 2
+        val angle =
+            index * angleIncrement * (Math.PI / 180)  // Конвертирует угол из градусов в радианы
+        val finalX =
+            (radius * kotlin.math.cos(angle) + mainButtonCenterX).toFloat() - button.width / 2
+        val finalY =
+            (radius * kotlin.math.sin(angle) + mainButtonCenterY).toFloat() - button.height / 2
 
         return Pair(finalX, finalY)
     }
@@ -355,6 +377,7 @@ class FloatingButtonService() : Service() {
                 // Кнпока "SETTINGS"
                 Log.d("Button", "Settings clicked")
             }
+
             1 -> {
                 if (volumeSliderLayout.parent == null) { // Условие, если ползунок еще не отображен
                     // Определяем параметры макета для ползунка громкости
@@ -390,6 +413,7 @@ class FloatingButtonService() : Service() {
                 }
                 Log.d("Button", "Volume clicked")
             }
+
             2 -> {
                 // ДОМОЙ
                 val homeIntent = Intent(Intent.ACTION_MAIN)
@@ -398,14 +422,17 @@ class FloatingButtonService() : Service() {
                 startActivity(homeIntent)
                 Log.d("Button", "Home clicked")
             }
+
             3 -> {
                 // ЯРКОСТЬ
                 Log.d("Button", "Brightness clicked")
             }
+
             4 -> {
                 // ВЫБОР ФОНА
                 Log.d("Button", "Background clicked")
             }
+
             5 -> {
                 // ПУСТО
                 Log.d("Button", "Any clicked")
@@ -431,7 +458,7 @@ class FloatingButtonService() : Service() {
      * Определяем позицию главной кнопки по X/Y-координатам.
      */
     private fun positionFloatingButtonAt(x: Float, y: Float) {
-       // получаем текущие параметры макета кнопки.
+        // получаем текущие параметры макета кнопки.
         val params = floatingButtonLayout.layoutParams as WindowManager.LayoutParams
         params.x = x.toInt() - floatingButtonLayout.width / 2
         params.y = y.toInt() - floatingButtonLayout.height / 2
@@ -445,4 +472,6 @@ class FloatingButtonService() : Service() {
          */
     fun resetCollapseTimer() {
         handler.removeCallbacks(collapseRunnable) // удаляет любые вызовы на сворачивание.
-        handler.postDelayed(collapseRunnable, 3000) // Задаем график на сворачивание с 3-х секундной задержкой
+        handler.postDelayed(collapseRunnable, 3000)
+    } // Задаем график на сворачивание с 3-х секундной задержкой
+}
