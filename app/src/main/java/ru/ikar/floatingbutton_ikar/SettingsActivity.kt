@@ -39,10 +39,8 @@ fun SettingsScreen() {
             onCheckedChange = { isChecked ->
                 isFloatingButtonOn = isChecked
                 if (isChecked) {
-                    // Start FloatingButtonService
                     context.startService(Intent(context, FloatingButtonService::class.java))
                 } else {
-                    // Stop FloatingButtonService
                     context.stopService(Intent(context, FloatingButtonService::class.java))
                 }
             }
