@@ -5,7 +5,9 @@ import android.annotation.SuppressLint
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.graphics.PixelFormat
 import android.media.AudioManager
+import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -40,6 +42,8 @@ class FloatingButtonService() : Service() {
     private lateinit var volumeSlider: SeekBar
     private lateinit var params: WindowManager.LayoutParams
     private lateinit var audioManager: AudioManager
+    private lateinit var overlayView: View
+    private lateinit var floatingButtonView: View
     private val collapseRunnable = Runnable {
         Log.d("CollapseRunnable", "Running collapse")
         if (isExpanded) {
@@ -97,12 +101,60 @@ class FloatingButtonService() : Service() {
             android.graphics.PixelFormat.TRANSLUCENT // задаёт параметр полупрозрачности
         )
 
-        // как только отрисовывается floatingButtonLayout, идёт расчёт позиции доп.кнопок.
-        floatingButtonLayout.post {
-            positionSurroundingButtons(mainButton, buttons, radius)
+        overlayView = LayoutInflater.from(this).inflate(R.layout.fullscreen_overlay, null)
+        floatingButtonView = LayoutInflater.from(this).inflate(R.layout.floating_button_layout, null)
+
+        val overlayParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            else WindowManager.LayoutParams.TYPE_PHONE,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+            PixelFormat.TRANSLUCENT
+        )
+
+//        val windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+//        if (overlayView.parent == null) {
+//            windowManager.addView(overlayView, overlayParams)
+//        }
+
+//        overlayView.setOnTouchListener(object : View.OnTouchListener {
+//            private val numberOfTaps = 3
+//            private val positions = Array(3) { Pair(0f, 0f) }
+//
+//            override fun onTouch(v: View?, event: MotionEvent?): Boolean {
+//                when (event?.actionMasked) {
+//                    MotionEvent.ACTION_POINTER_DOWN -> {
+//                        if (event.pointerCount == numberOfTaps) {
+//                            for (i in 0 until numberOfTaps) {
+//                                positions[i] = Pair(event.getX(i), event.getY(i))
+//                            }
+//
+//                            // Calculate the centroid
+//                            val centroidX = (positions[0].first + positions[1].first + positions[2].first) / 3
+//                            val centroidY = (positions[0].second + positions[1].second + positions[2].second) / 3
+//
+//                            try {
+//                                showFloatingButton(centroidX, centroidY)
+//                            } catch (e: Exception) {
+//                                Log.e("FloatingButtonError", "Failed to show button: ", e)
+//                            }
+//
+//                        }
+//                    }
+//                }
+//                return true
+//            }
+//        })
+
+        if (floatingButtonLayout.parent == null) {
+            floatingButtonLayout.post {
+                positionSurroundingButtons(mainButton, buttons, radius)
+            }
+            windowManager.addView(floatingButtonLayout, params)
         }
-        //  добавляет макет кнопки к window manager, далает его видимым на экране.
-        windowManager.addView(floatingButtonLayout, params)
 
         // устанавливает слушатель изменений на ползунок громкости
         volumeSlider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -139,38 +191,52 @@ class FloatingButtonService() : Service() {
             when (event.actionMasked) {
                 // Обработка действий при первом касании пальца (new pointer)
                 MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
-                    // проверяет количество пальцем (3 пальца)
-                    if (event.pointerCount == 3) {
-                        Log.d("FiveFingerTouch", "Detected 5 fingers!")
-                        // расчёт позиции по X и Y всех трёх пальцев.
-                        var sumX = 0f
-                        var sumY = 0f
-                        for (i in 0 until event.pointerCount) {
-                            sumX += event.getX(i)
-                            sumY += event.getY(i)
-                        }
-                        val avgX = sumX / event.pointerCount
-                        val avgY = sumY / event.pointerCount
-                        // Перемещение кнопки на среднюю позицию между тремя пальцами.
-                        positionFloatingButtonAt(avgX, avgY)
-                        true // Потребить touch event
-                    } else {
-                        // Если это касание одним пальцем то выполняется этот блок:
-                        // Установка исходного значения прозрачности для кнопки.
-                        changeOpacity(initialOpacity)
-                        // Сохраняем исходную позицию кнпоки.
-                        initialX = params.x
-                        initialY = params.y
-                        // Сохраняем исходную позицию пальца
-                        initialTouchX = event.rawX
-                        initialTouchY = event.rawY
-                        // Обновляем флаг определения движения.
-                        hasMoved = false
-                        // Сохраняем последнее действие при касании.
-                        lastAction = event.action
-                        Log.d("setOnTouchListener", "check setOnTouchListener")
-                        true
-                    }
+                    // Если это касание одним пальцем то выполняется этот блок:
+                    // Установка исходного значения прозрачности для кнопки.
+                    changeOpacity(initialOpacity)
+                    // Сохраняем исходную позицию кнпоки.
+                    initialX = params.x
+                    initialY = params.y
+                    // Сохраняем исходную позицию пальца
+                    initialTouchX = event.rawX
+                    initialTouchY = event.rawY
+                    // Обновляем флаг определения движения.
+                    hasMoved = false
+                    // Сохраняем последнее действие при касании.
+                    lastAction = event.action
+                    Log.d("setOnTouchListener", "check setOnTouchListener")
+                    true
+//                    if (event.pointerCount == 3) {
+//                        Log.d("ThreeFingerTouch", "Detected 3 fingers!")
+//                        // расчёт позиции по X и Y всех трёх пальцев.
+//                        var sumX = 0f
+//                        var sumY = 0f
+//                        for (i in 0 until event.pointerCount) {
+//                            sumX += event.getX(i)
+//                            sumY += event.getY(i)
+//                        }
+//                        val avgX = sumX / event.pointerCount
+//                        val avgY = sumY / event.pointerCount
+//                        // Перемещение кнопки на среднюю позицию между тремя пальцами.
+//                        positionFloatingButtonAt(avgX, avgY)
+//                        true // Потребить touch event
+//                    } else {
+//                        // Если это касание одним пальцем то выполняется этот блок:
+//                        // Установка исходного значения прозрачности для кнопки.
+//                        changeOpacity(initialOpacity)
+//                        // Сохраняем исходную позицию кнпоки.
+//                        initialX = params.x
+//                        initialY = params.y
+//                        // Сохраняем исходную позицию пальца
+//                        initialTouchX = event.rawX
+//                        initialTouchY = event.rawY
+//                        // Обновляем флаг определения движения.
+//                        hasMoved = false
+//                        // Сохраняем последнее действие при касании.
+//                        lastAction = event.action
+//                        Log.d("setOnTouchListener", "check setOnTouchListener")
+//                        true
+//                    }
                 }
                 // Блок, где определяется подъём пальца от кнопки.
                 MotionEvent.ACTION_UP -> {
@@ -224,7 +290,6 @@ class FloatingButtonService() : Service() {
                 handleButtonClick(index)
             }
         }
-
         // Устанавливаем исходную прозранчость для макета кнопки
         changeOpacity(opacity)
     }
@@ -406,7 +471,9 @@ class FloatingButtonService() : Service() {
                     volumeSlider.progress = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
 
                     // Добавляем слайдер на экран
-                    windowManager.addView(volumeSliderLayout, volumeParams)
+                    if (volumeSliderLayout.parent == null) {
+                        windowManager.addView(volumeSliderLayout, volumeParams)
+                    }
                 } else {
                     // Если ползунок уже отображен, удаляем с экрана
                     windowManager.removeView(volumeSliderLayout)
@@ -474,4 +541,41 @@ class FloatingButtonService() : Service() {
         handler.removeCallbacks(collapseRunnable) // удаляет любые вызовы на сворачивание.
         handler.postDelayed(collapseRunnable, 3000)
     } // Задаем график на сворачивание с 3-х секундной задержкой
+
+    private fun showFloatingButton(x: Float, y: Float) {
+        val windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+
+        // Позиция кнопки (х/у-оси) с учетом половины длины/ширины
+        params.x = (x - (floatingButtonView.width / 2)).toInt()
+        params.y = (y - (floatingButtonView.height / 2)).toInt()
+
+        if (floatingButtonView.parent == null) {
+            // если кнопка не прикреплена, добавить
+            windowManager.addView(floatingButtonView, params)
+        } else {
+            // если кнопка прикреплена, обновить макетIf the button is already attached, just update its layout
+            windowManager.updateViewLayout(floatingButtonView, params)
+        }
+
+//        floatingButtonView.postDelayed({ windowManager.removeView(floatingButtonView) }, 5000)
+    }
+
+    private fun moveFloatingButtonTo(x: Float, y: Float) {
+        val windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+
+        val params = floatingButtonView.layoutParams as WindowManager.LayoutParams
+
+        // Обновить позицию кнопки  (x, y)
+        params.x = x.toInt()
+        params.y = y.toInt()
+
+        if (floatingButtonView.parent != null) {
+            // если кнопка уже добавлена, обновить позицию
+            windowManager.updateViewLayout(floatingButtonView, params)
+        } else {
+            // если кнопка еще не добавлена, добавить на экран
+            windowManager.addView(floatingButtonView, params)
+        }
+    }
+
 }

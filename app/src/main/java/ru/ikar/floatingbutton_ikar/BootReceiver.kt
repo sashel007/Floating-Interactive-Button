@@ -19,7 +19,6 @@ class BootReceiver : BroadcastReceiver() {
             // Если загрузка устройства завершена, создаём интент для запуска
             // кода в классе FloatingButtonService
             val serviceIntent = Intent(context, FloatingButtonService::class.java)
-
             // Используем предоставленный контекст для старта класса FloatingButtonService.
             // Это гарантирует, что сервис запущен сразу после перезагрузки устройства.
             context?.startService(serviceIntent)
