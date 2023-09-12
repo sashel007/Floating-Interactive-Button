@@ -44,8 +44,7 @@ fun SettingsScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(paddings)
-        ,
+            .padding(paddings),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Switch(
@@ -60,7 +59,7 @@ fun SettingsScreen() {
             }
         )
         Text(text = if (isFloatingButtonOn) "Floating Button is ON" else "Floating Button is OFF")
-        
+
         Spacer(modifier = Modifier.size(spacingSize))
 
         ElevatedButton(
@@ -88,7 +87,12 @@ fun SettingsScreen() {
 
         Spacer(modifier = Modifier.size(spacingSize))
 
-//        AppGridFragment()
+        SelectedAppLine()
+
+        Spacer(modifier = Modifier.size(spacingSize))
+
+        SystemAppList()
 
     }
 }
+
