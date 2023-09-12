@@ -15,8 +15,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.FloatingButton_IKAR"
         tools:targetApi="31">
+
         <activity
-            android:name=".SettingsActivity"
+            android:name=".settings_actitivy.SettingsActivity"
             android:exported="true"
             android:theme="@style/Theme.FloatingButton_IKAR">
             <intent-filter>
@@ -24,8 +25,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <service
-            android:name=".FloatingButtonService">
+            android:name=".FloatingButtonService"
+            android:exported="true">
         </service>
 
         <receiver android:name=".BootReceiver"
@@ -34,5 +37,6 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+
     </application>
 </manifest>

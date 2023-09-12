@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.provider.Settings
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -439,55 +440,19 @@ class FloatingButtonService() : Service() {
     private fun handleButtonClick(index: Int) {
         when (index) {
             0 -> {
-                // Кнпока "SETTINGS"
+                // НАСТРОЙКИ
+                settingsButtonHandler()
                 Log.d("Button", "Settings clicked")
             }
 
             1 -> {
-                if (volumeSliderLayout.parent == null) { // Условие, если ползунок еще не отображен
-                    // Определяем параметры макета для ползунка громкости
-                    val volumeParams = WindowManager.LayoutParams(
-                        WindowManager.LayoutParams.WRAP_CONTENT,
-                        WindowManager.LayoutParams.WRAP_CONTENT,
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                        } else {
-                            WindowManager.LayoutParams.TYPE_PHONE
-                        },
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                        android.graphics.PixelFormat.TRANSLUCENT
-                    )
-
-                    // Получаем текущую позицию основной кнопки
-                    val mainButtonX = params.x + mainButton.width
-                    val mainButtonY = params.y
-
-                    // Устанавливаем позицию макета volumeSliderLayout
-                    volumeParams.x = mainButtonX
-                    volumeParams.y = mainButtonY
-
-                    // Обновляем ползунок согласно системным значениям громкости
-                    volumeSlider.max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                    volumeSlider.progress = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-
-                    // Добавляем слайдер на экран
-                    if (volumeSliderLayout.parent == null) {
-                        windowManager.addView(volumeSliderLayout, volumeParams)
-                    }
-                } else {
-                    // Если ползунок уже отображен, удаляем с экрана
-                    windowManager.removeView(volumeSliderLayout)
-                }
-                Log.d("Button", "Volume clicked")
+                // ГРОМКОСТЬ
+                volumeButtonHandler()
             }
 
             2 -> {
                 // ДОМОЙ
-                val homeIntent = Intent(Intent.ACTION_MAIN)
-                homeIntent.addCategory(Intent.CATEGORY_HOME)
-                homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                startActivity(homeIntent)
-                Log.d("Button", "Home clicked")
+                homeButtonHandler()
             }
 
             3 -> {
@@ -576,6 +541,61 @@ class FloatingButtonService() : Service() {
             // если кнопка еще не добавлена, добавить на экран
             windowManager.addView(floatingButtonView, params)
         }
+    }
+
+    //обработчик кнопки "Громкость"
+    private fun volumeButtonHandler() {
+        if (volumeSliderLayout.parent == null) { // Условие, если ползунок еще не отображен
+            // Определяем параметры макета для ползунка громкости
+            val volumeParams = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                } else {
+                    WindowManager.LayoutParams.TYPE_PHONE
+                },
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                android.graphics.PixelFormat.TRANSLUCENT
+            )
+
+            // Получаем текущую позицию основной кнопки
+            val mainButtonX = params.x + mainButton.width
+            val mainButtonY = params.y
+
+            // Устанавливаем позицию макета volumeSliderLayout
+            volumeParams.x = mainButtonX
+            volumeParams.y = mainButtonY
+
+            // Обновляем ползунок согласно системным значениям громкости
+            volumeSlider.max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            volumeSlider.progress = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+
+            // Добавляем слайдер на экран
+            if (volumeSliderLayout.parent == null) {
+                windowManager.addView(volumeSliderLayout, volumeParams)
+            }
+        } else {
+            // Если ползунок уже отображен, удаляем с экрана
+            windowManager.removeView(volumeSliderLayout)
+        }
+        Log.d("Button", "Volume clicked")
+    }
+
+    //Обработчик кнопки "ДОМОЙ"
+    private fun homeButtonHandler() {
+        val homeIntent = Intent(Intent.ACTION_MAIN)
+        homeIntent.addCategory(Intent.CATEGORY_HOME)
+        homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(homeIntent)
+        Log.d("Button", "Home clicked")
+    }
+
+    private fun settingsButtonHandler() {
+//        Intent intent = new Intent(Settings.ACTION_SETTINGS);
+//        startActivity(intent);
+        val settingsIntent = Intent(Settings.ACTION_SETTINGS)
+        startActivity(settingsIntent)
     }
 
 }

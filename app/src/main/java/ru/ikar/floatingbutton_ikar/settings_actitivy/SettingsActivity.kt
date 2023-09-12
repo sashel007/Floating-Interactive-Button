@@ -1,14 +1,16 @@
-package ru.ikar.floatingbutton_ikar
+package ru.ikar.floatingbutton_ikar.settings_actitivy
 
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.Button
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -16,10 +18,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import ru.ikar.floatingbutton_ikar.FloatingButtonService
 
 class SettingsActivity : ComponentActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -32,8 +37,17 @@ class SettingsActivity : ComponentActivity() {
 fun SettingsScreen() {
     val context = LocalContext.current
     var isFloatingButtonOn by remember { mutableStateOf(false) }
+    val buttonWidth = 200.dp
+    val paddings = 20.dp
+    val spacingSize = 50.dp
 
-    Column {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddings)
+        ,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Switch(
             checked = isFloatingButtonOn,
             onCheckedChange = { isChecked ->
@@ -46,17 +60,35 @@ fun SettingsScreen() {
             }
         )
         Text(text = if (isFloatingButtonOn) "Floating Button is ON" else "Floating Button is OFF")
+        
+        Spacer(modifier = Modifier.size(spacingSize))
 
-        Button(onClick = {}) {
-            Text("Button 1")
+        ElevatedButton(
+            onClick = {
+
+            },
+            modifier = Modifier.width(buttonWidth)
+        ) {
+            Text("Добавить кнопку")
         }
 
-        Button(onClick = {}) {
-            Text("Button 2")
+        ElevatedButton(
+            onClick = {},
+            modifier = Modifier.width(buttonWidth)
+        ) {
+            Text("__ANY__")
         }
 
-        Button(onClick = {}) {
-            Text("Button 3")
+        ElevatedButton(
+            onClick = {},
+            modifier = Modifier.width(buttonWidth)
+        ) {
+            Text("__ANY__")
         }
+
+        Spacer(modifier = Modifier.size(spacingSize))
+
+//        AppGridFragment()
+
     }
 }
