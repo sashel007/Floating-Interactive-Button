@@ -112,7 +112,7 @@ fun getSystemApps(context: Context): List<ApplicationInfo> {
         .filter { (it.flags and ApplicationInfo.FLAG_SYSTEM) != 0 }
 }
 
-fun getAppForButton(context: Context): ApplicationInfo {
-
-}
+//fun getAppForButton(context: Context): ApplicationInfo {
+//
+//}
 
