@@ -39,12 +39,12 @@ fun SelectedAppLine() {
             .background(Color.Gray)
     ) {
         LazyRow(modifier = Modifier.background(Color.Gray)){
-            items(buttons.size)
+//            items(buttons.size)
 
         }
     }
 }
 
-private fun getSelectedButtons(buttons: List<ImageButton>): List<ImageButton> {
-
-}
+//private fun getSelectedButtons(buttons: List<ImageButton>): List<ImageButton> {
+//
+//}
