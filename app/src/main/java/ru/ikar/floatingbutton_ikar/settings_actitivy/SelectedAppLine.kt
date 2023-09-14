@@ -46,7 +46,8 @@ fun SelectedAppLine() {
 }
 
 some changes
-
+q
+2
 
 //private fun getSelectedButtons(buttons: List<ImageButton>): List<ImageButton> {
 //
