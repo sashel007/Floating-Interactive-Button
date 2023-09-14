@@ -1,5 +1,7 @@
 package ru.ikar.floatingbutton_ikar.settings_actitivy
 
+import android.media.Image
+import android.widget.ImageButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
@@ -36,6 +38,13 @@ fun SelectedAppLine() {
             .fillMaxWidth()
             .background(Color.Gray)
     ) {
-        LazyRow(modifier = Modifier.background(Color.Gray)){}
+        LazyRow(modifier = Modifier.background(Color.Gray)){
+            items(buttons.size)
+
+        }
     }
+}
+
+private fun getSelectedButtons(buttons: List<ImageButton>): List<ImageButton> {
+
 }

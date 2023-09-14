@@ -21,7 +21,7 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.SeekBar
 
-class FloatingButtonService() : Service() {
+    class FloatingButtonService() : Service() {
 
     private lateinit var windowManager: WindowManager
     private lateinit var floatingButtonLayout: View
@@ -590,6 +590,7 @@ class FloatingButtonService() : Service() {
         startActivity(homeIntent)
         Log.d("Button", "Home clicked")
     }
+
 
     private fun settingsButtonHandler() {
 //        Intent intent = new Intent(Settings.ACTION_SETTINGS);

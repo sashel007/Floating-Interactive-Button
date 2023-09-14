@@ -2,6 +2,7 @@ package ru.ikar.floatingbutton_ikar.settings_actitivy
 
 import android.content.Intent
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
