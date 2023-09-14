@@ -45,7 +45,7 @@ fun SelectedAppLine() {
     }
 }
 
-САААААША
+САААААШАпуцкпукркер
 
 
 //private fun getSelectedButtons(buttons: List<ImageButton>): List<ImageButton> {
