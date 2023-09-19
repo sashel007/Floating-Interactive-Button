@@ -74,6 +74,14 @@ class FloatingButtonService() : Service() {
                 drawableResId in buttonResources
 //            Log.d("DEBUG", "Button ID: ${button.id}, drawableResId: $drawableResId, isButtonSelected: $isButtonSelected")
             }
+            selectedButtons.forEachIndexed { index, button ->
+                Log.d("Button", "Setting onClick listener for button at index: $index")
+                // Вешаем onClicklistener на каждую кнопку.
+                button.setOnClickListener {
+                    // Вызываем функцию handleButtonClickfunction, в индекс кладём номер элемента из списка кнопки.
+                    handleButtonClick(index)
+                }
+            }
         }
         return super.onStartCommand(intent, flags, startId)
     }
@@ -272,13 +280,9 @@ class FloatingButtonService() : Service() {
             }
         }
         // Итерируем по всем кнопкам, чтобы обработать setOnClickListener.
-        selectedButtons.forEachIndexed { index, button ->
-            // Вешаем onClicklistener на каждую кнопку.
-            button.setOnClickListener {
-                // Вызываем функцию handleButtonClickfunction, в индекс кладём номер элемента из списка кнопки.
-                handleButtonClick(index)
-            }
-        }
+        Log.d("Button", "Before loop. selectedButtons size: ${selectedButtons.size}")
+
+        Log.d("Button", "After loop.")
         // Устанавливаем исходную прозранчость для макета кнопки
         changeOpacity(opacity)
     }
