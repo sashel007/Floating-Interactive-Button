@@ -21,10 +21,8 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.SeekBar
 
-    class FloatingButtonService() : Service() {
+class FloatingButtonService() : Service() {
 
-    private lateinit var windowManager: WindowManager
-    private lateinit var floatingButtonLayout: View
     private var initialX: Int = 0
     private var initialY: Int = 0
     private var initialTouchX: Float = 0f
@@ -37,30 +35,52 @@ import android.widget.SeekBar
     private var isExpanded = false // состояние кнопок (кнопки развернуты/свёрнуты)
     private var hasMoved = false
     private val handler = Handler(Looper.getMainLooper())
-    private lateinit var mainButton: View
+    private var buttonResources: List<Int> = emptyList()
+    private var selectedButtons: List<View> = emptyList()
     private lateinit var buttons: List<View>
+    private lateinit var windowManager: WindowManager
+    private lateinit var mainButton: View
     private lateinit var volumeSliderLayout: View
     private lateinit var volumeSlider: SeekBar
     private lateinit var params: WindowManager.LayoutParams
     private lateinit var audioManager: AudioManager
     private lateinit var overlayView: View
+    private lateinit var floatingButtonLayout: View
     private lateinit var floatingButtonView: View
     private val collapseRunnable = Runnable {
         Log.d("CollapseRunnable", "Running collapse")
         if (isExpanded) {
-            toggleButtonsVisibility(buttons, mainButton)
+            toggleButtonsVisibility(selectedButtons, mainButton)
         }
         changeOpacity(opacity)  // Делает кнопку полупрозрачной
     }
 
-
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        intent?.getIntegerArrayListExtra("selectedButtons")?.let {
+            buttonResources = it
+            Log.d("DEBUG", "Received buttonResources from Intent: $buttonResources")
+            selectedButtons = buttons.filter { button ->
+                val drawableResId = when(button.id) {
+                    R.id.settings_button -> R.drawable.settings_button_icon
+                    R.id.volume_button -> R.drawable.volume_button_icon
+                    R.id.home_button -> R.drawable.home_button_icon
+                    R.id.brightness_button -> R.drawable.brightness_button_icon
+                    R.id.background_button -> R.drawable.background_button_icon
+                    R.id.any_button -> R.drawable.any_button_icon
+                    else -> -1
+                }
+                drawableResId in buttonResources
+//            Log.d("DEBUG", "Button ID: ${button.id}, drawableResId: $drawableResId, isButtonSelected: $isButtonSelected")
+            }
+        }
+        return super.onStartCommand(intent, flags, startId)
+    }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate() {
-
         super.onCreate()
-
         // инициализация WindowManager для кастомных настроек отображения.
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         // инициализация AudioManager для управления аудио-настройками.
@@ -71,6 +91,7 @@ import android.widget.SeekBar
                     as FrameLayout
         // Получаем ссылку на главную кнопку внутри макета floating button
         mainButton = floatingButtonLayout.findViewById<View>(R.id.floating_button)
+
         buttons = listOf(
             floatingButtonLayout.findViewById<ImageButton>(R.id.settings_button),
             floatingButtonLayout.findViewById<ImageButton>(R.id.volume_button),
@@ -79,12 +100,13 @@ import android.widget.SeekBar
             floatingButtonLayout.findViewById<ImageButton>(R.id.background_button),
             floatingButtonLayout.findViewById<ImageButton>(R.id.any_button),
         )
+        Log.d("DEBUG", "buttonResources: $buttonResources")
 
+        Log.d("DEBUG", "selectedButtons: $selectedButtons")
         // инфлейтим ползунок громкости, который отображается по нажатию кнопки громкости
         volumeSliderLayout = LayoutInflater.from(this).inflate(R.layout.volume_slider_layout, null)
         // даём ссылку на слайдер внутри макета volume slider.
         volumeSlider = volumeSliderLayout.findViewById<SeekBar>(R.id.volume_slider)
-
         // Определеяем параметры макета для отображения вьюшки с кнопкой.
         // Эти настройки определяют то, как вьюшка отображается на экране.
         params = WindowManager.LayoutParams(
@@ -102,19 +124,19 @@ import android.widget.SeekBar
             android.graphics.PixelFormat.TRANSLUCENT // задаёт параметр полупрозрачности
         )
 
-        overlayView = LayoutInflater.from(this).inflate(R.layout.fullscreen_overlay, null)
+//        overlayView = LayoutInflater.from(this).inflate(R.layout.fullscreen_overlay, null)
         floatingButtonView = LayoutInflater.from(this).inflate(R.layout.floating_button_layout, null)
 
-        val overlayParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            else WindowManager.LayoutParams.TYPE_PHONE,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                    WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
-            PixelFormat.TRANSLUCENT
-        )
+//        val overlayParams = WindowManager.LayoutParams(
+//            WindowManager.LayoutParams.MATCH_PARENT,
+//            WindowManager.LayoutParams.MATCH_PARENT,
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+//            else WindowManager.LayoutParams.TYPE_PHONE,
+//            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+//                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+//                    WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+//            PixelFormat.TRANSLUCENT
+//        )
 
 //        val windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 //        if (overlayView.parent == null) {
@@ -152,11 +174,10 @@ import android.widget.SeekBar
 
         if (floatingButtonLayout.parent == null) {
             floatingButtonLayout.post {
-                positionSurroundingButtons(mainButton, buttons, radius)
+                positionSurroundingButtons(mainButton, selectedButtons, radius)
             }
             windowManager.addView(floatingButtonLayout, params)
         }
-
         // устанавливает слушатель изменений на ползунок громкости
         volumeSlider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             // этот метод тригерится каждый раз, когда изменяется значение ползунка.
@@ -181,13 +202,13 @@ import android.widget.SeekBar
         })
 
         // Настройка слушателя для floatingButtonLayout.
-        floatingButtonLayout.setOnClickListener {
-            // Переключает видимость окружающих кнопок, когда основная кнопка прожата.
-            toggleButtonsVisibility(buttons, mainButton)
-            Log.d("setOnClickListener", "check setOnClickListener")
-        }
+//        floatingButtonLayout.setOnClickListener {
+//            // Переключает видимость окружающих кнопок, когда основная кнопка прожата.
+//            toggleButtonsVisibility(selectedButtons, mainButton)
+//            Log.d("setOnClickListener", "check setOnClickListener")
+//        }
 
-        // Настройка onTouchlistener для floatingButtonLayout для обработки касаний.
+//         Настройка onTouchlistener для floatingButtonLayout для обработки касаний.
         floatingButtonLayout.setOnTouchListener { _, event ->
             when (event.actionMasked) {
                 // Обработка действий при первом касании пальца (new pointer)
@@ -205,39 +226,8 @@ import android.widget.SeekBar
                     hasMoved = false
                     // Сохраняем последнее действие при касании.
                     lastAction = event.action
-                    Log.d("setOnTouchListener", "check setOnTouchListener")
-                    true
-//                    if (event.pointerCount == 3) {
-//                        Log.d("ThreeFingerTouch", "Detected 3 fingers!")
-//                        // расчёт позиции по X и Y всех трёх пальцев.
-//                        var sumX = 0f
-//                        var sumY = 0f
-//                        for (i in 0 until event.pointerCount) {
-//                            sumX += event.getX(i)
-//                            sumY += event.getY(i)
-//                        }
-//                        val avgX = sumX / event.pointerCount
-//                        val avgY = sumY / event.pointerCount
-//                        // Перемещение кнопки на среднюю позицию между тремя пальцами.
-//                        positionFloatingButtonAt(avgX, avgY)
-//                        true // Потребить touch event
-//                    } else {
-//                        // Если это касание одним пальцем то выполняется этот блок:
-//                        // Установка исходного значения прозрачности для кнопки.
-//                        changeOpacity(initialOpacity)
-//                        // Сохраняем исходную позицию кнпоки.
-//                        initialX = params.x
-//                        initialY = params.y
-//                        // Сохраняем исходную позицию пальца
-//                        initialTouchX = event.rawX
-//                        initialTouchY = event.rawY
-//                        // Обновляем флаг определения движения.
-//                        hasMoved = false
-//                        // Сохраняем последнее действие при касании.
-//                        lastAction = event.action
-//                        Log.d("setOnTouchListener", "check setOnTouchListener")
-//                        true
-//                    }
+                    Log.d("setOnTouchListener", "finger_down")
+                    return@setOnTouchListener false // Пока что не потребляем событие
                 }
                 // Блок, где определяется подъём пальца от кнопки.
                 MotionEvent.ACTION_UP -> {
@@ -251,14 +241,16 @@ import android.widget.SeekBar
                             initialTouchY - event.rawY
                         ) < 10
                     ) {
-                        toggleButtonsVisibility(buttons, mainButton)
+                        toggleButtonsVisibility(selectedButtons, mainButton)
                         // Отменяем сворачивание.
                         handler.removeCallbacks(collapseRunnable)
+                        return@setOnTouchListener false
+                    } else {
+                        // Сохраняем и возвращаем в лямбду последнее касание.
+                        lastAction = event.action
+                        Log.d("finger up", "up_")
+                        return@setOnTouchListener true
                     }
-                    // Сохраняем и возвращаем в лямбду последнее касание.
-                    lastAction = event.action
-                    Log.d("finger up", "up_")
-                    true
                 }
                 // Блок, фиксирующий движение пальца.
                 MotionEvent.ACTION_MOVE -> {
@@ -274,17 +266,13 @@ import android.widget.SeekBar
                         hasMoved = true
                     }
                     Log.d("move across", "across___")
-                    true
+                    return@setOnTouchListener true // Потребляем событие, так как это движение
                 }
-
-                else -> {
-                    false
-                }
+                else -> return@setOnTouchListener false // Для всех остальных событий возвращаем false
             }
         }
-
         // Итерируем по всем кнопкам, чтобы обработать setOnClickListener.
-        buttons.forEachIndexed { index, button ->
+        selectedButtons.forEachIndexed { index, button ->
             // Вешаем onClicklistener на каждую кнопку.
             button.setOnClickListener {
                 // Вызываем функцию handleButtonClickfunction, в индекс кладём номер элемента из списка кнопки.
@@ -310,33 +298,29 @@ import android.widget.SeekBar
      * Позиции маленьких (доп.) кнопок по окружности.
      *
      * @param mainButton Исходная большая кнопка, вокруг которой размещаются доп.кнопки.
-     * @param buttons Список кнопок, которые надо расположить вокруг основной.
+     * @param selectedButtons Список кнопок, которые надо расположить вокруг основной.
      * @param radius Расстояние от главной кнопки до доп.кнопок.
      */
 
-    private fun positionSurroundingButtons(mainButton: View, buttons: List<View>, radius: Float) {
+    private fun positionSurroundingButtons(mainButton: View, selectedButtons: List<View>, radius: Float) {
         // Рассчитываем центральные координаты главной кнпоки по осям Х/Y.
         val mainButtonCenterX = mainButton.x + mainButton.width / 2
         val mainButtonCenterY = mainButton.y + mainButton.height / 2
-
         // Рассчитываем приращение угла на основе количества кнопок (size = 6), чтобы расположить их равномерно
-        val angleIncrement = 360.0 / buttons.size
-
+        val angleIncrement = 360.0 / selectedButtons.size
         // Итерируем по каждой кнпоке для расчёта новой позиции
         // в макете они изначально на позиции START и TOP.
-        for (i in buttons.indices) {
+        for (i in selectedButtons.indices) {
             // Рассчитаем угол для кнопки в радианах.
             val angle = i * angleIncrement * (Math.PI / 180)  // сконвертируем градусы в радианы
-
             // Рассчитаем координаты X/Y для текущей кнопки по углу и радиусу
             val x =
-                (radius * kotlin.math.cos(angle) + mainButtonCenterX).toFloat() - buttons[i].width / 2
+                (radius * kotlin.math.cos(angle) + mainButtonCenterX).toFloat() - selectedButtons[i].width / 2
             val y =
-                (radius * kotlin.math.sin(angle) + mainButtonCenterY).toFloat() - buttons[i].height / 2
-
+                (radius * kotlin.math.sin(angle) + mainButtonCenterY).toFloat() - selectedButtons[i].height / 2
             // Установим новую позицию кнопки.
-            buttons[i].x = x
-            buttons[i].y = y
+            selectedButtons[i].x = x
+            selectedButtons[i].y = y
         }
     }
 
@@ -345,18 +329,21 @@ import android.widget.SeekBar
      * Когда кнопки невидимы, эта функция разворачивает их вокруг кнопки.
      * Когда видимы - она сворачивает их обратно.
      *
-     * @param buttons Список кнопок.
+     * @param selectedButtons Список кнопок.
      * @param mainButton Центральная кнопка, вокгруг которой рендерятся доп.кнопки.
      */
-    fun toggleButtonsVisibility(buttons: List<View>, mainButton: View) {
+    fun toggleButtonsVisibility(selectedButtons: List<View>, mainButton: View) {
         // Убедимся, отменены ли предыдущие операции со сворачиванием
         handler.removeCallbacks(collapseRunnable)  // Удалим все вызовы функции сворачивания
-
+        Log.d("toggleVisibility", "Function called. isExpanded = $isExpanded")
+        Log.d("toggleVisibility", "Number of buttons in selectedButtons: ${selectedButtons.size}")
         if (isExpanded) {
+            Log.d("toggleVisibility", "Collapsing buttons...")
             // Кнопки развёрнуты. Надо свернуть
-            for (button in buttons) {
+            for (button in selectedButtons) {
                 // Возьмём центр основной кнопки за целевые координаты
-                button.visibility = View.INVISIBLE
+//                button.visibility = View.INVISIBLE
+                button.visibility = View.VISIBLE
                 button.animate()
                     .x(mainButton.x + mainButton.width / 2 - button.width / 2)
                     .y(mainButton.y + mainButton.height / 2 - button.height / 2)
@@ -364,26 +351,28 @@ import android.widget.SeekBar
                     .withEndAction {
                         // После проигрывания анимации, спрятать кнопки.
                         button.visibility = View.INVISIBLE
+                        Log.d("toggleVisibility", "Button collapsed and hidden")
                     }
                     .start()
             }
-            // Запланируем сворачивание кнопок после задержки в 3000 миллисек.
-            handler.postDelayed(collapseRunnable, 3000)
         } else {
+            Log.d("toggleVisibility", "Expanding buttons...")
             // Кнопки уже свёрнуты, надо их развернуть
-            for ((index, button) in buttons.withIndex()) {
+            for ((index, button) in selectedButtons.withIndex()) {
                 // Рассчитаем последнюю позицию кнопки.
                 val (finalX, finalY) = calculateFinalPosition(
                     button,
                     mainButton,
                     index,
-                    buttons.size
+                    selectedButtons.size
                 )
+                Log.d("toggleVisibility", "Button $index final position: x=$finalX, y=$finalY")
                 // Установим исходную позицию кнопки в центре основной кнопки
                 button.x = mainButton.x + mainButton.width / 2 - button.width / 2
                 button.y = mainButton.y + mainButton.height / 2 - button.height / 2
                 // Сделаем кнопку видимой.
                 button.visibility = View.VISIBLE
+                Log.d("toggleVisibility", "Button $index set to initial position and made visible")
                 // Санимируем кнопку для перехода в финальную позицию
                 button.animate()
                     .x(finalX)
@@ -392,12 +381,11 @@ import android.widget.SeekBar
                     .start()
             }
         }
-
         // Несмотря на состояние, при котором кнопки развёрнуты, всегда устанавливается команда на сворачивание
-        handler.postDelayed(collapseRunnable, 3000)
-
+//        handler.postDelayed(collapseRunnable, 3000)
         // Меняем состояние развёрнутости (если развёрнуто, свернём - и обратно)
         isExpanded = !isExpanded
+        Log.d("toggleVisibility", "Changed isExpanded state to $isExpanded")
     }
 
     /**
@@ -426,7 +414,6 @@ import android.widget.SeekBar
             (radius * kotlin.math.cos(angle) + mainButtonCenterX).toFloat() - button.width / 2
         val finalY =
             (radius * kotlin.math.sin(angle) + mainButtonCenterY).toFloat() - button.height / 2
-
         return Pair(finalX, finalY)
     }
 
@@ -444,27 +431,22 @@ import android.widget.SeekBar
                 settingsButtonHandler()
                 Log.d("Button", "Settings clicked")
             }
-
             1 -> {
                 // ГРОМКОСТЬ
                 volumeButtonHandler()
             }
-
             2 -> {
                 // ДОМОЙ
                 homeButtonHandler()
             }
-
             3 -> {
                 // ЯРКОСТЬ
                 Log.d("Button", "Brightness clicked")
             }
-
             4 -> {
                 // ВЫБОР ФОНА
                 Log.d("Button", "Background clicked")
             }
-
             5 -> {
                 // ПУСТО
                 Log.d("Button", "Any clicked")
@@ -494,7 +476,6 @@ import android.widget.SeekBar
         val params = floatingButtonLayout.layoutParams as WindowManager.LayoutParams
         params.x = x.toInt() - floatingButtonLayout.width / 2
         params.y = y.toInt() - floatingButtonLayout.height / 2
-
         // Применяем обновленные координаты к кнопке.
         windowManager.updateViewLayout(floatingButtonLayout, params)
     }
@@ -509,7 +490,6 @@ import android.widget.SeekBar
 
     private fun showFloatingButton(x: Float, y: Float) {
         val windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-
         // Позиция кнопки (х/у-оси) с учетом половины длины/ширины
         params.x = (x - (floatingButtonView.width / 2)).toInt()
         params.y = (y - (floatingButtonView.height / 2)).toInt()
@@ -521,19 +501,15 @@ import android.widget.SeekBar
             // если кнопка прикреплена, обновить макетIf the button is already attached, just update its layout
             windowManager.updateViewLayout(floatingButtonView, params)
         }
-
 //        floatingButtonView.postDelayed({ windowManager.removeView(floatingButtonView) }, 5000)
     }
 
     private fun moveFloatingButtonTo(x: Float, y: Float) {
         val windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-
         val params = floatingButtonView.layoutParams as WindowManager.LayoutParams
-
         // Обновить позицию кнопки  (x, y)
         params.x = x.toInt()
         params.y = y.toInt()
-
         if (floatingButtonView.parent != null) {
             // если кнопка уже добавлена, обновить позицию
             windowManager.updateViewLayout(floatingButtonView, params)
@@ -558,19 +534,15 @@ import android.widget.SeekBar
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 android.graphics.PixelFormat.TRANSLUCENT
             )
-
             // Получаем текущую позицию основной кнопки
             val mainButtonX = params.x + mainButton.width
             val mainButtonY = params.y
-
             // Устанавливаем позицию макета volumeSliderLayout
             volumeParams.x = mainButtonX
             volumeParams.y = mainButtonY
-
             // Обновляем ползунок согласно системным значениям громкости
             volumeSlider.max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
             volumeSlider.progress = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-
             // Добавляем слайдер на экран
             if (volumeSliderLayout.parent == null) {
                 windowManager.addView(volumeSliderLayout, volumeParams)
