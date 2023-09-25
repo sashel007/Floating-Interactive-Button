@@ -9,6 +9,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,6 +21,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,24 +41,32 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.graphics.drawable.toBitmap
 
 @Composable
-fun SystemAppList() {
+fun SystemAppList(
+    appsState: MutableState<List<ImageResource>>,
+    onAppSelected: (ImageResource) -> Unit
+) {
     val context = LocalContext.current
     val apps = getSystemApps(context)
     val colorList = listOf(Color.Red, Color.Blue, Color.Red)
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(4),
-        modifier = Modifier.border(4.dp, Brush.radialGradient(colors = colorList), RectangleShape)
+        modifier = Modifier
+            .border(4.dp, Brush.radialGradient(colors = colorList), RectangleShape)
+            .fillMaxSize()
     )
     {
         items(apps.size) { index ->
-            SystemAppItem(apps[index])
+            SystemAppItem(apps[index], onAppSelected)
         }
     }
 }
 
 @Composable
-fun SystemAppItem(app: ApplicationInfo) {
+fun SystemAppItem(
+    app: ApplicationInfo,
+    onAppSelected: (ImageResource) -> Unit
+) {
     val context = LocalContext.current
     val iconBitmap = app.loadIcon(context.packageManager).toBitmap().asImageBitmap()
     val appName = app.loadLabel(context.packageManager).toString()
@@ -89,7 +99,11 @@ fun SystemAppItem(app: ApplicationInfo) {
             onDismissRequest = { showDialog = false },
             text = { Text("Добавить приложение к кнопке?") },
             confirmButton = {
-                Button(onClick = { /* Handle your first action here */ }) {
+                Button(onClick = {
+                    // Здесь передаём иконку приложения в SelectedAppLine
+                    onAppSelected(ImageResource.AppIcon(iconBitmap))
+                    showDialog = false
+                }) {
                     Text("Да")
                 }
             },
@@ -111,8 +125,4 @@ fun getSystemApps(context: Context): List<ApplicationInfo> {
     return resolveInfos.map { it.activityInfo.applicationInfo }
         .filter { (it.flags and ApplicationInfo.FLAG_SYSTEM) != 0 }
 }
-
-//fun getAppForButton(context: Context): ApplicationInfo {
-//
-//}
 

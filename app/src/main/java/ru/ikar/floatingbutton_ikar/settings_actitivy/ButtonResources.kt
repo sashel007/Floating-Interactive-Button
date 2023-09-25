@@ -1,3 +1,5 @@
+package ru.ikar.floatingbutton_ikar.settings_actitivy
+
 import ru.ikar.floatingbutton_ikar.R
 
 object ButtonResources {

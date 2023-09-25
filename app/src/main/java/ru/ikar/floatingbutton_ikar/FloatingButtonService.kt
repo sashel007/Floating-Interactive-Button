@@ -346,8 +346,8 @@ class FloatingButtonService() : Service() {
             // Кнопки развёрнуты. Надо свернуть
             for (button in selectedButtons) {
                 // Возьмём центр основной кнопки за целевые координаты
-//                button.visibility = View.INVISIBLE
-                button.visibility = View.VISIBLE
+                button.visibility = View.INVISIBLE
+//                button.visibility = View.VISIBLE
                 button.animate()
                     .x(mainButton.x + mainButton.width / 2 - button.width / 2)
                     .y(mainButton.y + mainButton.height / 2 - button.height / 2)
@@ -502,7 +502,7 @@ class FloatingButtonService() : Service() {
             // если кнопка не прикреплена, добавить
             windowManager.addView(floatingButtonView, params)
         } else {
-            // если кнопка прикреплена, обновить макетIf the button is already attached, just update its layout
+            // если кнопка прикреплена, обновить макет  
             windowManager.updateViewLayout(floatingButtonView, params)
         }
 //        floatingButtonView.postDelayed({ windowManager.removeView(floatingButtonView) }, 5000)
