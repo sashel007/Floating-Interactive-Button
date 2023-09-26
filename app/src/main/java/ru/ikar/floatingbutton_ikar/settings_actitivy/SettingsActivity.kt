@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -134,7 +135,6 @@ class SettingsActivity : ComponentActivity() {
     }
 }
 
-
 @Composable
 fun SettingsScreen(
     buttonResourcesState: MutableState<List<ImageResource>>,
@@ -197,26 +197,29 @@ fun SettingsScreen(
         SelectedAppLine(
             buttonResourcesState = buttonResourcesState,
             onResourcesUpdated = { updatedResources ->
+                Log.d("selectedappline","selectedappline_enter")
                 onResourcesUpdated(updatedResources)
             },
             onAppSelected = { selectedIcon ->
                 val updatedResources = buttonResourcesState.value.toMutableList().apply {
                     add(selectedIcon)
                 }
+                Log.d("DEBUG_TAG", "Before updating resources")
                 buttonResourcesState.value = updatedResources
                 onResourcesUpdated(updatedResources)
+                Log.d("DEBUG_TAG", "After updating resources")
             }
         )
 
         Spacer(modifier = Modifier.height(spacingSize))
 
         SystemAppList(allAppsState, onAppSelected = { selectedApp: ImageResource ->
-            println("Before removal: ${allAppsState.value.size}")
+            Log.d("selectedapp__","Before removal: ${allAppsState.value.size}")
             // Добавляем выбранное приложение в список selectedAppsState
             selectedAppsState.value = selectedAppsState.value + listOf(selectedApp)
             // Удаляем выбранное приложение из allAppsState
             allAppsState.value = allAppsState.value - listOf(selectedApp)
-            println("After removal: ${allAppsState.value.size}")
+            Log.d("selected_appasd","After removal: ${allAppsState.value.size}")
 
             // This is the missing piece. Add the selected app to the buttonResourcesState and
             // notify the SelectedAppLine about the addition.

@@ -88,7 +88,6 @@ fun SelectedAppLine(
                     }
                 }
             }
-
         }
     }
     if (showRemoveDialog) {

@@ -3,6 +3,7 @@ package ru.ikar.floatingbutton_ikar.settings_actitivy
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -47,6 +48,7 @@ fun SystemAppList(
 ) {
     val context = LocalContext.current
     val apps = getSystemApps(context)
+    Log.d("__apps__","$apps")
     val colorList = listOf(Color.Red, Color.Blue, Color.Red)
 
     LazyVerticalGrid(
@@ -58,6 +60,7 @@ fun SystemAppList(
     {
         items(apps.size) { index ->
             SystemAppItem(apps[index], onAppSelected)
+            Log.d("__app2__","${apps[index]}")
         }
     }
 }
@@ -124,5 +127,6 @@ fun getSystemApps(context: Context): List<ApplicationInfo> {
     val resolveInfos = context.packageManager.queryIntentActivities(intent, 0)
     return resolveInfos.map { it.activityInfo.applicationInfo }
         .filter { (it.flags and ApplicationInfo.FLAG_SYSTEM) != 0 }
+
 }
 
