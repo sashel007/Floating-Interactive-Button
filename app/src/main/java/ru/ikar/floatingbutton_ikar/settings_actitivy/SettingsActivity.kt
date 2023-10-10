@@ -221,8 +221,6 @@ fun SettingsScreen(
             allAppsState.value = allAppsState.value - listOf(selectedApp)
             Log.d("selected_appasd","After removal: ${allAppsState.value.size}")
 
-            // This is the missing piece. Add the selected app to the buttonResourcesState and
-            // notify the SelectedAppLine about the addition.
             val updatedResources = buttonResourcesState.value.toMutableList().apply {
                 add(selectedApp)
             }
