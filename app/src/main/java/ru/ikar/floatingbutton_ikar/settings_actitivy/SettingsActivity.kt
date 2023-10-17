@@ -66,6 +66,7 @@ class SettingsActivity : ComponentActivity() {
             })
         }
 
+
         // Проверка разрешения на отображение поверх других приложений.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             // Если у нас нет разрешения и версия ОС >= Marshmallow, то создаем намерение для запроса разрешения.
