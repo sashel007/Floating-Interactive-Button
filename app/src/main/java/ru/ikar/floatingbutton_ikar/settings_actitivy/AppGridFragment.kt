@@ -41,7 +41,8 @@ import com.google.gson.reflect.TypeToken
 @Composable
 fun SystemAppList(
     apps: (context: Context) -> List<AppInfo>,
-    sharedPreferences: SharedPreferences
+    sharedPreferences: SharedPreferences,
+    updateAppIcons: () -> Unit
 ) {
     val context = LocalContext.current
     val appsList = apps(context)
@@ -54,14 +55,15 @@ fun SystemAppList(
             .fillMaxSize()
     ) {
         items(appsList.size) { index ->
-            SystemAppItem(appsList[index], sharedPreferences)
+            SystemAppItem(appsList[index], sharedPreferences, updateAppIcons)
         }
     }
 }
 
 @Composable
 fun SystemAppItem(
-    app: AppInfo, sharedPreferences: SharedPreferences
+    app: AppInfo, sharedPreferences: SharedPreferences, updateAppIcons: () -> Unit
+
 ) {
     val iconBitmap = app.icon
     val appName = app.packageName
@@ -93,8 +95,7 @@ fun SystemAppItem(
     }
 
     if (showDialog) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
+        AlertDialog(onDismissRequest = { showDialog = false },
             text = { Text("Добавить приложение к кнопке?") },
             confirmButton = {
                 Button(onClick = {
@@ -113,6 +114,10 @@ fun SystemAppItem(
                     // Сохраняем обновленный список обратно в SharedPreferences
                     val newJsonString = Gson().toJson(currentPackageNames)
                     sharedPreferences.edit().putString("selected_packages", newJsonString).apply()
+
+                    // Обновляем иконки
+                    updateAppIcons()
+
 
                     showDialog = false
                 }) {

@@ -165,7 +165,12 @@ fun SettingsScreen(
         Log.d("SettingsActivity__", "File does not exist!")
     }
 
-    val appIcons: List<ImageBitmap> = getAppIcons(context, jsonString ?: "")
+    var appIcons by remember { mutableStateOf(getAppIcons(context, sharedPreferences.getString("selected_packages", null) ?: "")) }
+
+    // Функция для обновления иконок
+    val updateAppIcons = {
+        appIcons = getAppIcons(context, sharedPreferences.getString("selected_packages", null) ?: "")
+    }
 
     Column(
         modifier = Modifier
@@ -209,7 +214,7 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(spacingSize))
 
-        SystemAppList(getAllApps, sharedPreferences)
+        SystemAppList(getAllApps, sharedPreferences, updateAppIcons)
     }
 }
 
