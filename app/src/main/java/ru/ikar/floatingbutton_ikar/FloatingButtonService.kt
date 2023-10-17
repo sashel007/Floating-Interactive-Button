@@ -5,6 +5,8 @@ import android.annotation.SuppressLint
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.os.Handler
 import android.os.IBinder
@@ -18,8 +20,11 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.SeekBar
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import kotlin.math.abs
 
-class FloatingButtonService() : Service() {
+class FloatingButtonService : Service() {
 
     private var initialX: Int = 0
     private var initialY: Int = 0
@@ -33,8 +38,8 @@ class FloatingButtonService() : Service() {
     private var isExpanded = false // состояние кнопок (кнопки развернуты/свёрнуты)
     private var hasMoved = false
     private val handler = Handler(Looper.getMainLooper())
-    private var buttonResources: List<Int> = emptyList()
-    private lateinit var buttons: List<View>
+    private lateinit var pm: PackageManager
+    private lateinit var buttons: MutableList<View>
     private lateinit var windowManager: WindowManager
     private lateinit var mainButton: View
     private lateinit var volumeSliderLayout: View
@@ -43,6 +48,8 @@ class FloatingButtonService() : Service() {
     private lateinit var audioManager: AudioManager
     private lateinit var floatingButtonLayout: View
     private lateinit var floatingButtonView: View
+    private lateinit var sharedPreferences: SharedPreferences
+    private lateinit var packageNames: List<String>
     private val collapseRunnable = Runnable {
         Log.d("CollapseRunnable", "Running collapse")
         if (isExpanded) {
@@ -56,29 +63,48 @@ class FloatingButtonService() : Service() {
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate() {
         super.onCreate()
+
+        pm = this.packageManager
+
         // инициализация WindowManager для кастомных настроек отображения.
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         // инициализация AudioManager для управления аудио-настройками.
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        sharedPreferences = getSharedPreferences("app_package_name", Context.MODE_PRIVATE)
+        packageNames = getPackageNamesFromSharedPreferences()
+
         // инфлейтим макет кнопки (floating button).
         floatingButtonLayout =
             LayoutInflater.from(this).inflate(R.layout.floating_button_layout, null) as FrameLayout
         // Получаем ссылку на главную кнопку внутри макета floating button
-        mainButton = floatingButtonLayout.findViewById<View>(R.id.floating_button)
+        mainButton = floatingButtonLayout.findViewById(R.id.floating_button)
 
-        buttons = listOf(
+        buttons = mutableListOf(
             floatingButtonLayout.findViewById(R.id.settings_button),
-            floatingButtonLayout.findViewById<ImageButton>(R.id.volume_button),
-            floatingButtonLayout.findViewById<ImageButton>(R.id.home_button),
-            floatingButtonLayout.findViewById<ImageButton>(R.id.brightness_button),
-            floatingButtonLayout.findViewById<ImageButton>(R.id.background_button),
-            floatingButtonLayout.findViewById<ImageButton>(R.id.any_button),
+            floatingButtonLayout.findViewById(R.id.volume_button),
+            floatingButtonLayout.findViewById(R.id.home_button),
+            floatingButtonLayout.findViewById(R.id.brightness_button),
+            floatingButtonLayout.findViewById(R.id.background_button),
+            floatingButtonLayout.findViewById(R.id.any_button),
         )
+
+        for (packageName in packageNames) {
+            try {
+                val appIcon = pm.getApplicationIcon(packageName)
+                val newButton = ImageButton(this)
+                newButton.setImageDrawable(appIcon)
+                (floatingButtonLayout as FrameLayout).addView(newButton)
+                buttons.add(newButton)
+            } catch (e: PackageManager.NameNotFoundException) {
+                e.printStackTrace()
+            }
+        }
+
         Log.d("DEBUG", "selectedButtons: $buttons")
         // инфлейтим ползунок громкости, который отображается по нажатию кнопки громкости
         volumeSliderLayout = LayoutInflater.from(this).inflate(R.layout.volume_slider_layout, null)
         // даём ссылку на слайдер внутри макета volume slider.
-        volumeSlider = volumeSliderLayout.findViewById<SeekBar>(R.id.volume_slider)
+        volumeSlider = volumeSliderLayout.findViewById(R.id.volume_slider)
         // Определеяем параметры макета для отображения вьюшки с кнопкой.
         // Эти настройки определяют то, как вьюшка отображается на экране.
         params = WindowManager.LayoutParams(
@@ -136,7 +162,7 @@ class FloatingButtonService() : Service() {
                     }, opacityDuration)
 
                     // Если кнопка не сдвинулась дальше 10 пикселей на любой из осей, то считать это нажатием.
-                    if (!hasMoved && Math.abs(initialTouchX - event.rawX) < 10 && Math.abs(
+                    if (!hasMoved && abs(initialTouchX - event.rawX) < 10 && abs(
                             initialTouchY - event.rawY
                         ) < 10
                     ) {
@@ -161,7 +187,7 @@ class FloatingButtonService() : Service() {
                     lastAction = event.action
                     // Определяем, надо ли фиксировать движение (если палец ушёл дальше 10 пикселей)
                     // Если надо, то устанавливаем флаг на hasMoved
-                    if (Math.abs(initialTouchX - event.rawX) > 10 || Math.abs(initialTouchY - event.rawY) > 10) {
+                    if (abs(initialTouchX - event.rawX) > 10 || abs(initialTouchY - event.rawY) > 10) {
                         hasMoved = true
                     }
                     Log.d("move across", "across___")
@@ -246,7 +272,7 @@ class FloatingButtonService() : Service() {
      * @param selectedButtons Список кнопок.
      * @param mainButton Центральная кнопка, вокгруг которой рендерятся доп.кнопки.
      */
-    fun toggleButtonsVisibility(selectedButtons: List<View>, mainButton: View) {
+    private fun toggleButtonsVisibility(selectedButtons: List<View>, mainButton: View) {
         // Убедимся, отменены ли предыдущие операции со сворачиванием
         handler.removeCallbacks(collapseRunnable)  // Удалим все вызовы функции сворачивания
         Log.d("toggleVisibility", "Function called. isExpanded = $isExpanded")
@@ -302,7 +328,7 @@ class FloatingButtonService() : Service() {
      * @return Возвращаем Float-значение, в которое вкладываем X/Y координаты кнопок.
      */
 
-    fun calculateFinalPosition(
+    private fun calculateFinalPosition(
         button: View, mainButton: View, index: Int, totalButtons: Int
     ): Pair<Float, Float> {
         val mainButtonCenterX = mainButton.x + mainButton.width / 2
@@ -421,6 +447,18 @@ class FloatingButtonService() : Service() {
     private fun settingsButtonHandler() {
         val settingsIntent = Intent(Settings.ACTION_SETTINGS)
         startActivity(settingsIntent)
+    }
+
+    private fun getPackageNamesFromSharedPreferences(): List<String> {
+        // Получаем JSON строку из SharedPreferences
+        val jsonString = sharedPreferences.getString("selected_packages", "")
+
+        // Разбираем JSON строку обратно в List<String>
+        return if (jsonString != "") {
+            Gson().fromJson(jsonString, object : TypeToken<List<String>>() {}.type)
+        } else {
+            emptyList()
+        }
     }
 
 }
