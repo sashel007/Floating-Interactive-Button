@@ -13,12 +13,14 @@ import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.SeekBar
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -85,7 +87,6 @@ class FloatingButtonService : Service() {
             floatingButtonLayout.findViewById(R.id.home_button),
             floatingButtonLayout.findViewById(R.id.brightness_button),
             floatingButtonLayout.findViewById(R.id.background_button),
-            floatingButtonLayout.findViewById(R.id.any_button),
         )
 
         for (packageName in packageNames) {
@@ -93,6 +94,18 @@ class FloatingButtonService : Service() {
                 val appIcon = pm.getApplicationIcon(packageName)
                 val newButton = ImageButton(this)
                 newButton.setImageDrawable(appIcon)
+
+                newButton.setScaleType(ImageView.ScaleType.CENTER_INSIDE) // Добавьте эту строку
+
+                // Преобразование dp в пиксели
+                val pixelsWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, resources.displayMetrics).toInt()
+                val pixelsHeight = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, resources.displayMetrics).toInt()
+
+                // Установка размеров для кнопки
+                val layoutParams = FrameLayout.LayoutParams(pixelsWidth, pixelsHeight)
+                newButton.layoutParams = layoutParams
+
+                // Добавление кнопки в layout и список
                 (floatingButtonLayout as FrameLayout).addView(newButton)
                 buttons.add(newButton)
             } catch (e: PackageManager.NameNotFoundException) {
