@@ -401,6 +401,7 @@ class FloatingButtonService() : Service() {
      * @param index Номер кнопки при итерировании по списку.
      * @param totalButtons Количество кнопок, которые надо равномерно распределить.
      * @return Возвращаем Float-значение, в которое вкладываем X/Y координаты кнопок.
+     * @param angleIncrement
      */
 
     fun calculateFinalPosition(
