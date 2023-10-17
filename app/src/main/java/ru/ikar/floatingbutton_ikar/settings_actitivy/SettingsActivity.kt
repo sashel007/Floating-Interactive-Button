@@ -45,7 +45,6 @@ import java.io.File
 class SettingsActivity : ComponentActivity() {
 
     private val OVERLAY_PERMISSION_REQ_CODE = 1001  // ваш код запроса для этого разрешения
-    private val PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 1
     private lateinit var sharedPreferences: SharedPreferences
 
     override fun onCreate(savedInstanceState: Bundle?) {
