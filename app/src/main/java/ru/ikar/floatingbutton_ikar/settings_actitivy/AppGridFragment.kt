@@ -1,9 +1,7 @@
 package ru.ikar.floatingbutton_ikar.settings_actitivy
 
 import android.content.Context
-import android.content.Intent
-import android.content.pm.ApplicationInfo
-import android.util.Log
+import android.content.SharedPreferences
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,7 +20,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,23 +29,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
-import androidx.core.graphics.drawable.toBitmap
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 @Composable
 fun SystemAppList(
-    appsState: MutableState<List<ImageResource>>,
-    onAppSelected: (ImageResource) -> Unit
+    apps: (context: Context) -> List<AppInfo>,
+    sharedPreferences: SharedPreferences
 ) {
     val context = LocalContext.current
-    val apps = getSystemApps(context)
-    Log.d("__apps__","$apps")
+    val appsList = apps(context)
     val colorList = listOf(Color.Red, Color.Blue, Color.Red)
 
     LazyVerticalGrid(
@@ -56,36 +52,30 @@ fun SystemAppList(
         modifier = Modifier
             .border(4.dp, Brush.radialGradient(colors = colorList), RectangleShape)
             .fillMaxSize()
-    )
-    {
-        items(apps.size) { index ->
-            SystemAppItem(apps[index], onAppSelected)
-            Log.d("__app2__","${apps[index]}")
+    ) {
+        items(appsList.size) { index ->
+            SystemAppItem(appsList[index], sharedPreferences)
         }
     }
 }
 
 @Composable
 fun SystemAppItem(
-    app: ApplicationInfo,
-    onAppSelected: (ImageResource) -> Unit
+    app: AppInfo, sharedPreferences: SharedPreferences
 ) {
-    val context = LocalContext.current
-    val iconBitmap = app.loadIcon(context.packageManager).toBitmap().asImageBitmap()
-    val appName = app.loadLabel(context.packageManager).toString()
+    val iconBitmap = app.icon
+    val appName = app.packageName
     var showDialog by remember { mutableStateOf(false) }
     val squaredSize = 40.dp
     val colorList = listOf(Color.Red, Color.Green, Color.Blue)
 
-    Box(
-        contentAlignment = Alignment.Center,
+    Box(contentAlignment = Alignment.Center,
         modifier = Modifier
             .padding(8.dp)
             .width(squaredSize)
             .height(squaredSize)
             .background(color = Color.LightGray)
-            .clickable { showDialog = true }
-    ) {
+            .clickable { showDialog = true }) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Image(
                 bitmap = iconBitmap,
@@ -93,7 +83,12 @@ fun SystemAppItem(
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.size(40.dp)
             )
-            Text(appName, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp))
+            Text(
+                appName,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 4.dp)
+            )
         }
     }
 
@@ -103,8 +98,22 @@ fun SystemAppItem(
             text = { Text("Добавить приложение к кнопке?") },
             confirmButton = {
                 Button(onClick = {
-                    // Здесь передаём иконку приложения в SelectedAppLine
-                    onAppSelected(ImageResource.AppIcon(iconBitmap))
+                    val jsonString = sharedPreferences.getString("selected_packages", "")
+                    val currentPackageNames: MutableList<String> = if (jsonString != "") {
+                        Gson().fromJson(
+                            jsonString, object : TypeToken<MutableList<String>>() {}.type
+                        )
+                    } else {
+                        mutableListOf()
+                    }
+
+                    // Добавляем новое имя пакета
+                    currentPackageNames.add(appName)
+
+                    // Сохраняем обновленный список обратно в SharedPreferences
+                    val newJsonString = Gson().toJson(currentPackageNames)
+                    sharedPreferences.edit().putString("selected_packages", newJsonString).apply()
+
                     showDialog = false
                 }) {
                     Text("Да")
@@ -120,13 +129,4 @@ fun SystemAppItem(
     }
 }
 
-fun getSystemApps(context: Context): List<ApplicationInfo> {
-    val intent = Intent(Intent.ACTION_MAIN, null).apply {
-        addCategory(Intent.CATEGORY_LAUNCHER)
-    }
-    val resolveInfos = context.packageManager.queryIntentActivities(intent, 0)
-    return resolveInfos.map { it.activityInfo.applicationInfo }
-        .filter { (it.flags and ApplicationInfo.FLAG_SYSTEM) != 0 }
-
-}
 

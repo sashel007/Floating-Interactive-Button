@@ -1,0 +1,10 @@
+data class AppInfo(val packageName: String, val icon: ImageBitmap)
+
+fun getAllApps(context: Context): List<AppInfo> {
+    val pm = context.packageManager
+    val apps = pm.getInstalledApplications(0)
+    return apps.map { appInfo ->
+        val iconDrawable = appInfo.loadIcon(pm)
+        AppInfo(appInfo.packageName, iconDrawable.toImageBitmap())
+    }
+}
