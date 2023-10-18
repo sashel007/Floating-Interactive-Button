@@ -78,6 +78,7 @@ class SettingsActivity : ComponentActivity() {
         }
     }
 
+
     // Этот метод будет вызван после того, как пользователь предоставит или отклонит разрешение
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
