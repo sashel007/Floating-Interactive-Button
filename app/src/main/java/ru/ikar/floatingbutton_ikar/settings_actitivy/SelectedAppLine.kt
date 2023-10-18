@@ -60,21 +60,4 @@ fun SelectedAppLine(
             }
         }
     }
-//    if (showRemoveDialog) {
-//        AlertDialog(title = { Text("Удалить кнопку?") }, confirmButton = {
-//            TextButton(onClick = {
-//                val updatedList = buttonResources.filterIndexed { i, _ -> i != selectedButtonIndex }
-//                buttonResourcesState.value = updatedList
-//                onResourcesUpdated(updatedList)  // Здесь мы уведомляем об изменении
-//                showRemoveDialog = false
-//            }) {
-//                Text("Удалить")
-//            }
-//        }, dismissButton = {
-//            TextButton(onClick = { showRemoveDialog = false }) {
-//                Text("Отмена")
-//            }
-//        }, onDismissRequest = { showRemoveDialog = false })
-//    }
-
 }
