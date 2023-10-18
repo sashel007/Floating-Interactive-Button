@@ -136,6 +136,15 @@ fun SelectedAppLine(
             },
             dismissButton = {
                 Button(onClick = {
+                    // Удаление ключа и значения из SharedPreferences
+                    val editor = sharedPreferences.edit()
+                    editor.remove("package_name_key_$showDialogWithButtonsIndex")
+                    editor.apply()
+
+                    // Обновление иконок приложения (если требуется)
+                    updateAppIcons()
+
+                    // Закрытие диалога
                     showDialogWithButtonsIndex = null
                 }) {
                     Text("Удалить")
