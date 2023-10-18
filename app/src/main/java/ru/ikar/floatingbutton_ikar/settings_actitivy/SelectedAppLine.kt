@@ -4,8 +4,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
@@ -30,7 +33,8 @@ fun SelectedAppLine(
 ) {
     val heightSize = 60.dp
     val spacerSize = 15.dp
-    val showRemoveDialog = remember { mutableStateOf(false) }
+    val boxSize = 50.dp // размер квадратного Box
+    val boxBackground = Color.LightGray // фон для Box
 
     Text(
         text = "Выбранные элементы плавающей кнпоки: ", fontWeight = FontWeight.Bold
@@ -42,13 +46,17 @@ fun SelectedAppLine(
             .fillMaxWidth()
             .background(Color.Gray)
     ) {
-        LazyRow(modifier = Modifier.background(Color.Gray)) {
-            items(appIcons) { bitmap ->
-                Image(
-                    bitmap = bitmap,
-                    contentDescription = null,
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.Gray),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            appIcons.take(4).forEach { bitmap ->
+                Box(
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(boxSize)
+                        .background(boxBackground)
                         .clickable(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() },
@@ -56,7 +64,13 @@ fun SelectedAppLine(
                                 // Обработка клика по изображению
                             }
                         )
-                )
+                ) {
+                    Image(
+                        bitmap = bitmap,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
     }
