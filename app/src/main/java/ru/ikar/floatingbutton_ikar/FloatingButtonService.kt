@@ -22,8 +22,6 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.SeekBar
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import kotlin.math.abs
 
 class FloatingButtonService : Service() {
@@ -72,7 +70,7 @@ class FloatingButtonService : Service() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         // инициализация AudioManager для управления аудио-настройками.
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        sharedPreferences = getSharedPreferences("app_package_name", Context.MODE_PRIVATE)
+        sharedPreferences = getSharedPreferences("app_package_names", Context.MODE_PRIVATE)
         packageNames = getPackageNamesFromSharedPreferences()
 
         // инфлейтим макет кнопки (floating button).
@@ -467,15 +465,35 @@ class FloatingButtonService : Service() {
     }
 
     private fun getPackageNamesFromSharedPreferences(): List<String> {
-        // Получаем JSON строку из SharedPreferences
-        val jsonString = sharedPreferences.getString("selected_packages", "")
+        val keys = listOf(
+            "package_name_key_0",
+            "package_name_key_1",
+            "package_name_key_2",
+            "package_name_key_3"
+        )
 
-        // Разбираем JSON строку обратно в List<String>
-        return if (jsonString != "") {
-            Gson().fromJson(jsonString, object : TypeToken<List<String>>() {}.type)
-        } else {
-            emptyList()
+        val packageNames = mutableListOf<String>()
+
+        keys.forEach { key ->
+            sharedPreferences.getString(key, null)?.let {
+                packageNames.add(it)
+            }
         }
-    }
+        Log.d("проверка_", "$packageNames")
+        val allEntries = sharedPreferences.getAll()
+        allEntries.forEach { (key, value) ->
+            Log.d("SharedPreferences__", "$key: $value")
+        }
 
+        return packageNames
+//        // Получаем JSON строку из SharedPreferences
+//        val jsonString = sharedPreferences.getString("selected_packages", "")
+//
+//        // Разбираем JSON строку обратно в List<String>
+//        return if (jsonString != "") {
+//            Gson().fromJson(jsonString, object : TypeToken<List<String>>() {}.type)
+//        } else {
+//            emptyList()
+//        }
+    }
 }
