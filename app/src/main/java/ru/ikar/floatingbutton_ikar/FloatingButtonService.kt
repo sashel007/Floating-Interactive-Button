@@ -98,8 +98,12 @@ class FloatingButtonService : Service() {
                 newButton.setScaleType(ImageView.ScaleType.CENTER_INSIDE) // Добавьте эту строку
 
                 // Преобразование dp в пиксели
-                val pixelsWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, resources.displayMetrics).toInt()
-                val pixelsHeight = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10f, resources.displayMetrics).toInt()
+                val pixelsWidth = TypedValue.applyDimension(
+                    TypedValue.COMPLEX_UNIT_DIP, 10f, resources.displayMetrics
+                ).toInt()
+                val pixelsHeight = TypedValue.applyDimension(
+                    TypedValue.COMPLEX_UNIT_DIP, 10f, resources.displayMetrics
+                ).toInt()
 
                 // Установка размеров для кнопки
                 val layoutParams = FrameLayout.LayoutParams(pixelsWidth, pixelsHeight)

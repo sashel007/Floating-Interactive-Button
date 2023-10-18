@@ -16,6 +16,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,25 +38,30 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import ru.ikar.floatingbutton_ikar.FloatingButtonService
-import java.io.File
 
 class SettingsActivity : ComponentActivity() {
 
     private val OVERLAY_PERMISSION_REQ_CODE = 1001  // ваш код запроса для этого разрешения
     private lateinit var sharedPreferences: SharedPreferences
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        sharedPreferences = getSharedPreferences("app_package_name", Context.MODE_PRIVATE)
+        sharedPreferences = getSharedPreferences("app_package_names", Context.MODE_PRIVATE)
+        val keys = listOf(
+            "package_name_key_1",
+            "package_name_key_2",
+            "package_name_key_3",
+            "package_name_key_4"
+        )
         setContent {
             // Отображаем экран настроек.
             SettingsScreen(getAllApps = { context -> getAllApps(context) },
                 sharedPreferences = sharedPreferences,
-                getAppIcons = { context, jsonFilePath -> getAppIcons(context, jsonFilePath) })
+                getAppIconsFromKeys = { context -> getAppIconsFromKeys(context, keys) } )
         }
+        logSharedPreferencesContents(sharedPreferences)
 
 
         // Проверка разрешения на отображение поверх других приложений.
@@ -119,57 +125,57 @@ class SettingsActivity : ComponentActivity() {
         return bitmap.asImageBitmap()
     }
 
-    private fun getAppIcons(context: Context, jsonString: String?): List<ImageBitmap> {
-        // Если jsonString null или пуст, возвращаем пустой список
-        if (jsonString.isNullOrEmpty()) return emptyList()
-
-        // Преобразуем строку JSON в список имен пакетов
-        val packageNames = Gson().fromJson(jsonString, object : TypeToken<List<String>>() {}.type)
-            ?: listOf<String>()
-
-        // Получение иконок приложений
+    private fun getAppIconsFromKeys(context: Context, keys: List<String>): List<ImageBitmap> {
         val pm = context.packageManager
-        return packageNames.mapNotNull { packageName ->
-            try {
-                val appInfo = pm.getApplicationInfo(packageName, 0)
-                val iconDrawable = appInfo.loadIcon(pm)
-                iconDrawable.toImageBitmap()
-            } catch (e: PackageManager.NameNotFoundException) {
+
+        return keys.mapNotNull { key ->
+            val packageName = sharedPreferences.getString(key, null)
+            if (packageName != null) {
+                try {
+                    val appInfo = pm.getApplicationInfo(packageName, 0)
+                    val iconDrawable = appInfo.loadIcon(pm)
+                    iconDrawable.toImageBitmap()
+                } catch (e: PackageManager.NameNotFoundException) {
+                    null
+                }
+            } else {
                 null
             }
         }
     }
+    fun logSharedPreferencesContents(sharedPreferences: SharedPreferences) {
+        val allEntries = sharedPreferences.all
+        for ((key, value) in allEntries) {
+            Log.d("SharedPreferences__", key + ": " + value.toString())
+        }
+    }
+
 
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun SettingsScreen(
     getAllApps: (context: Context) -> List<AppInfo>,
     sharedPreferences: SharedPreferences,
-    getAppIcons: (context: Context, jsonFilePath: String) -> List<ImageBitmap>
+    getAppIconsFromKeys: (context: Context) -> List<ImageBitmap>
 ) {
     val context = LocalContext.current
     var isFloatingButtonOn by remember { mutableStateOf(false) }
     val buttonWidth = 200.dp
     val paddings = 20.dp
     val spacingSize = 50.dp
-    val jsonString = sharedPreferences.getString("selected_packages", null)
-    Log.d("SettingsActivity__", "JSON path: $jsonString")
 
-    // Этот блок кода проверяет, существует ли файл
-    val file = File(jsonString ?: "")
-    if (file.exists()) {
-        Log.d("SettingsActivity__", "File exists!")
-    } else {
-        Log.d("SettingsActivity__", "File does not exist!")
+
+    var appIcons by remember {
+        mutableStateOf(
+            getAppIconsFromKeys(context)
+        )
     }
-
-    var appIcons by remember { mutableStateOf(getAppIcons(context, sharedPreferences.getString("selected_packages", null) ?: "")) }
-
-    // Функция для обновления иконок
     val updateAppIcons = {
-        appIcons = getAppIcons(context, sharedPreferences.getString("selected_packages", null) ?: "")
+        appIcons = getAppIconsFromKeys(context)
     }
+
 
     Column(
         modifier = Modifier
@@ -209,11 +215,16 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.size(spacingSize))
 
-        SelectedAppLine(appIcons = appIcons)
+        SelectedAppLine(
+            appIcons = appIcons,
+            apps = getAllApps,
+            sharedPreferences = sharedPreferences,
+            updateAppIcons = updateAppIcons
+        )
 
         Spacer(modifier = Modifier.height(spacingSize))
 
-        SystemAppList(getAllApps, sharedPreferences, updateAppIcons)
+//        SystemAppList(getAllApps, sharedPreferences, updateAppIcons)
     }
 }
 

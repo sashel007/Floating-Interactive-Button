@@ -40,6 +40,7 @@ import com.google.gson.reflect.TypeToken
 
 @Composable
 fun SystemAppList(
+    key: String,
     apps: (context: Context) -> List<AppInfo>,
     sharedPreferences: SharedPreferences,
     updateAppIcons: () -> Unit
@@ -55,15 +56,14 @@ fun SystemAppList(
             .fillMaxSize()
     ) {
         items(appsList.size) { index ->
-            SystemAppItem(appsList[index], sharedPreferences, updateAppIcons)
+            SystemAppItem(key, appsList[index], sharedPreferences, updateAppIcons)
         }
     }
 }
 
 @Composable
 fun SystemAppItem(
-    app: AppInfo, sharedPreferences: SharedPreferences, updateAppIcons: () -> Unit
-
+    key: String, app: AppInfo, sharedPreferences: SharedPreferences, updateAppIcons: () -> Unit
 ) {
     val iconBitmap = app.icon
     val appName = app.packageName
@@ -95,29 +95,16 @@ fun SystemAppItem(
     }
 
     if (showDialog) {
-        AlertDialog(onDismissRequest = { showDialog = false },
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
             text = { Text("Добавить приложение к кнопке?") },
             confirmButton = {
                 Button(onClick = {
-                    val jsonString = sharedPreferences.getString("selected_packages", "")
-                    val currentPackageNames: MutableList<String> = if (jsonString != "") {
-                        Gson().fromJson(
-                            jsonString, object : TypeToken<MutableList<String>>() {}.type
-                        )
-                    } else {
-                        mutableListOf()
-                    }
-
-                    // Добавляем новое имя пакета
-                    currentPackageNames.add(appName)
-
-                    // Сохраняем обновленный список обратно в SharedPreferences
-                    val newJsonString = Gson().toJson(currentPackageNames)
-                    sharedPreferences.edit().putString("selected_packages", newJsonString).apply()
+                    // Сохраняем имя пакета с уникальным ключом в SharedPreferences
+                    sharedPreferences.edit().putString(key, appName).apply()
 
                     // Обновляем иконки
                     updateAppIcons()
-
 
                     showDialog = false
                 }) {
