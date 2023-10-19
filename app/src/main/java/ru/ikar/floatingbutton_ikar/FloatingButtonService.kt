@@ -93,6 +93,8 @@ class FloatingButtonService : Service() {
                 val newButton = ImageButton(this)
                 newButton.setImageDrawable(appIcon)
 
+                newButton.tag = packageName
+
                 newButton.setScaleType(ImageView.ScaleType.CENTER_INSIDE) // Добавьте эту строку
 
                 // Преобразование dp в пиксели
@@ -114,6 +116,8 @@ class FloatingButtonService : Service() {
                 e.printStackTrace()
             }
         }
+
+        setListenersForButtons()
 
         Log.d("DEBUG", "selectedButtons: $buttons")
         // инфлейтим ползунок громкости, который отображается по нажатию кнопки громкости
@@ -147,7 +151,6 @@ class FloatingButtonService : Service() {
             windowManager.addView(floatingButtonLayout, params)
         }
         // устанавливает слушатель изменений на ползунок громкости
-
 
         floatingButtonLayout.setOnTouchListener { _, event ->
             when (event.actionMasked) {
@@ -248,7 +251,7 @@ class FloatingButtonService : Service() {
     }
 
     /**
-     * Позиции маленьких (доп.) кнопок по окружности.
+     * Позиционирование маленьких (доп.) кнопок по окружности.
      *
      * @param mainButton Исходная большая кнопка, вокруг которой размещаются доп.кнопки.
      * @param selectedButtons Список кнопок, которые надо расположить вокруг основной.
@@ -365,40 +368,36 @@ class FloatingButtonService : Service() {
      * @param index Возвращаем кнопку по индексу в списке.
      */
 
-    private fun handleButtonClick(index: Int) {
-        when (index) {
-            0 -> {
-                // НАСТРОЙКИ
-                settingsButtonHandler()
-                Log.d("Button", "Settings clicked")
-            }
+    fun setListenersForButtons() {
+        for (button in buttons) {
+            button.setOnClickListener {
+                when (button.id) {
+                    R.id.settings_button -> {
+                        settingsButtonHandler()
+                    }
 
-            1 -> {
-                // ГРОМКОСТЬ
-                volumeButtonHandler()
-            }
+                    R.id.volume_button -> {
+                        volumeButtonHandler()
+                    }
 
-            2 -> {
-                // ДОМОЙ
-                homeButtonHandler()
-            }
+                    R.id.home_button -> {
+                        homeButtonHandler()
+                    }
 
-            3 -> {
-                // ЯРКОСТЬ
-                Log.d("Button", "Brightness clicked")
-            }
-
-            4 -> {
-                // ВЫБОР ФОНА
-                Log.d("Button", "Background clicked")
-            }
-
-            5 -> {
-                // ПУСТО
-                Log.d("Button", "Any clicked")
+                    R.id.brightness_button -> {}
+                    R.id.background_button -> {}
+                    else -> {
+                        Log.d("ButtonClick", "App icon clicked: ${button.tag as? String ?: "Unknown"}")
+                        // Если кнопка не является одной из базовых, считаем ее кнопкой-иконкой приложения
+                        val launchIntent =
+                            packageManager.getLaunchIntentForPackage(button.tag as? String ?: "")
+                        launchIntent?.let { startActivity(it) }
+                    }
+                }
             }
         }
     }
+
 
     /**
      * вызываем функцию `onDestroy`, когда сервис уничтожается.
@@ -471,9 +470,7 @@ class FloatingButtonService : Service() {
             "package_name_key_2",
             "package_name_key_3"
         )
-
         val packageNames = mutableListOf<String>()
-
         keys.forEach { key ->
             sharedPreferences.getString(key, null)?.let {
                 packageNames.add(it)
@@ -484,16 +481,6 @@ class FloatingButtonService : Service() {
         allEntries.forEach { (key, value) ->
             Log.d("SharedPreferences__", "$key: $value")
         }
-
         return packageNames
-//        // Получаем JSON строку из SharedPreferences
-//        val jsonString = sharedPreferences.getString("selected_packages", "")
-//
-//        // Разбираем JSON строку обратно в List<String>
-//        return if (jsonString != "") {
-//            Gson().fromJson(jsonString, object : TypeToken<List<String>>() {}.type)
-//        } else {
-//            emptyList()
-//        }
     }
 }
