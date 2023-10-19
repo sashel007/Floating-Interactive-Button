@@ -47,7 +47,6 @@ class FloatingButtonService : Service() {
     private lateinit var params: WindowManager.LayoutParams
     private lateinit var audioManager: AudioManager
     private lateinit var floatingButtonLayout: View
-    private lateinit var floatingButtonView: View
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var packageNames: List<String>
     private val collapseRunnable = Runnable {
@@ -139,16 +138,12 @@ class FloatingButtonService : Service() {
             android.graphics.PixelFormat.TRANSLUCENT // задаёт параметр полупрозрачности
         )
 
-        floatingButtonView =
-            LayoutInflater.from(this).inflate(R.layout.floating_button_layout, null)
-
         if (floatingButtonLayout.parent == null) {
             floatingButtonLayout.post {
                 positionSurroundingButtons(mainButton, buttons, radius)
             }
             windowManager.addView(floatingButtonLayout, params)
         }
-        // устанавливает слушатель изменений на ползунок громкости
 
         floatingButtonLayout.setOnTouchListener { _, event ->
             when (event.actionMasked) {
@@ -385,7 +380,9 @@ class FloatingButtonService : Service() {
                     R.id.brightness_button -> {}
                     R.id.background_button -> {}
                     else -> {
-                        Log.d("ButtonClick", "App icon clicked: ${button.tag as? String ?: "Unknown"}")
+                        Log.d(
+                            "ButtonClick", "App icon clicked: ${button.tag as? String ?: "Unknown"}"
+                        )
                         // Если кнопка не является одной из базовых, считаем ее кнопкой-иконкой приложения
                         val launchIntent =
                             packageManager.getLaunchIntentForPackage(button.tag as? String ?: "")
@@ -395,7 +392,6 @@ class FloatingButtonService : Service() {
             }
         }
     }
-
 
     /**
      * вызываем функцию `onDestroy`, когда сервис уничтожается.
@@ -463,10 +459,7 @@ class FloatingButtonService : Service() {
 
     private fun getPackageNamesFromSharedPreferences(): List<String> {
         val keys = listOf(
-            "package_name_key_0",
-            "package_name_key_1",
-            "package_name_key_2",
-            "package_name_key_3"
+            "package_name_key_0", "package_name_key_1", "package_name_key_2", "package_name_key_3"
         )
         val packageNames = mutableListOf<String>()
         keys.forEach { key ->
