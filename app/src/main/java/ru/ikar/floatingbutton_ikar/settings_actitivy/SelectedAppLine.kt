@@ -13,13 +13,14 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -38,6 +39,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 
@@ -53,88 +55,90 @@ fun SelectedAppLine(
     val spacerSize = 15.dp
     val boxSize = 50.dp
     val boxBackground = Color.LightGray
-    val spaceBetweenBoxes = 8.dp
-    val context = LocalContext.current
+    val spaceBetweenBoxes = 16.dp
     val packageManager = LocalContext.current.packageManager
     var showDialogWithButtonsIndex by remember { mutableStateOf<Int?>(null) }
     var activeDialog by remember { mutableStateOf<Int?>(null) }
 
     Text(
-        text = "Нажмите на ячейку, чтобы добавить/удалить:", fontWeight = FontWeight.Bold
+        text = "Нажмите на ячейку, \nчтобы добавить/удалить:",
+        fontWeight = FontWeight.Bold,
+        textAlign = TextAlign.Center
     )
     Spacer(modifier = Modifier.size(spacerSize))
-    Box(
+
+    Row(
         modifier = Modifier
-            .height(heightSize)
-            .fillMaxWidth(), contentAlignment = Alignment.Center
+            .fillMaxWidth()
+            .padding(horizontal = spaceBetweenBoxes)
+            .wrapContentWidth(), horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(modifier = Modifier.wrapContentWidth()) {
-            // Используем цикл, чтобы создать 4 блока
-            for (index in 0..3) {
+        // Используем цикл, чтобы создать 4 блока
+        for (index in 0..3) {
+            val key = "package_name_key_${index}"
+            val packageName = sharedPreferences.getString(key, null)
+            var bitmap: ImageBitmap? = null
 
-                val key = "package_name_key_${index}"
-                val packageName = sharedPreferences.getString(key, null)
-                var bitmap: ImageBitmap? = null
-
-                if (packageName != null) {
-                    val drawable: Drawable? = try {
-                        packageManager.getApplicationIcon(packageName)
-                    } catch (e: PackageManager.NameNotFoundException) {
-                        null
-                    }
-                    bitmap = when (drawable) {
-                        is BitmapDrawable -> drawable.bitmap.asImageBitmap()
-                        is AdaptiveIconDrawable -> {
-                            val width = drawable.intrinsicWidth
-                            val height = drawable.intrinsicHeight
-                            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                            val canvas = android.graphics.Canvas(bitmap)
-                            drawable.setBounds(0, 0, canvas.width, canvas.height)
-                            drawable.draw(canvas)
-                            bitmap.asImageBitmap()
-                        }
-                        else -> null
-                    }
+            if (packageName != null) {
+                val drawable: Drawable? = try {
+                    packageManager.getApplicationIcon(packageName)
+                } catch (e: PackageManager.NameNotFoundException) {
+                    null
                 }
-
-                Box(
-                    modifier = Modifier
-                        .size(boxSize)
-                        .background(boxBackground)
-                        .clickable(
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() },
-                            onClick = { showDialogWithButtonsIndex = index }
-                        )
-                ) {
-                    // Если у нас есть иконка для этого блока, отобразим её
-                    bitmap?.let {
-                        Image(
-                            bitmap = it,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                bitmap = when (drawable) {
+                    is BitmapDrawable -> drawable.bitmap.asImageBitmap()
+                    is AdaptiveIconDrawable -> {
+                        val width = drawable.intrinsicWidth
+                        val height = drawable.intrinsicHeight
+                        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                        val canvas = android.graphics.Canvas(bitmap)
+                        drawable.setBounds(0, 0, canvas.width, canvas.height)
+                        drawable.draw(canvas)
+                        bitmap.asImageBitmap()
                     }
-                    // Если это не последний блок, добавим разделитель
-                    if (index != 3) Spacer(modifier = Modifier.width(spaceBetweenBoxes))
+
+                    else -> null
+                }
+            }
+            Spacer(modifier = Modifier.width(spaceBetweenBoxes))
+
+            Box(
+                modifier = Modifier
+                    .size(boxSize)
+                    .background(boxBackground)
+                    .padding(spaceBetweenBoxes / 2) // Добавлено это
+                    .clickable(indication = null,
+                        interactionSource = remember { MutableInteractionSource() },
+                        onClick = { showDialogWithButtonsIndex = index })
+            ) {
+                // Если у нас есть иконка для этого блока, отобразим её
+                bitmap?.let {
+                    Image(
+                        bitmap = it, contentDescription = null, modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
         }
     }
 
     showDialogWithButtonsIndex?.let { index ->
-        AlertDialog(onDismissRequest = { showDialogWithButtonsIndex = null },
-            title = { Text("Выберите действие с кнопкой:") },
-            text = {},
-            confirmButton = {
-                Button(onClick = {
-                    activeDialog = index
-                    showDialogWithButtonsIndex = null
-                }) {
-                    Text("Добавить")
-                }
-            },
-            dismissButton = {
+        val key = "package_name_key_${index}"
+        val packageName = sharedPreferences.getString(key, null)
+        AlertDialog(onDismissRequest = { showDialogWithButtonsIndex = null }, title = {
+            Box(contentAlignment = Alignment.Center) {
+                Text("Выберите действие с кнопкой:")
+            }
+        }, text = {
+            Box(contentAlignment = Alignment.Center) {}
+        }, confirmButton = {
+            Button(onClick = {
+                activeDialog = index
+                showDialogWithButtonsIndex = null
+            }) {
+                Text("Добавить")
+            }
+        }, dismissButton = if (packageName != null) {
+            {
                 Button(onClick = {
                     // Удаление ключа и значения из SharedPreferences
                     val editor = sharedPreferences.edit()
@@ -149,7 +153,9 @@ fun SelectedAppLine(
                 }) {
                     Text("Удалить")
                 }
-            })
+            }
+        } else null
+        )
     }
 
     activeDialog?.let { index ->
@@ -174,13 +180,7 @@ fun showDialog(
                 .background(Color.White)
         ) {
             // Вставляем ваш список приложений
-            SystemAppList(key, apps, sharedPreferences, updateAppIcons)
+            SystemAppList(key, apps, sharedPreferences, updateAppIcons, onClose)
         }
     }
 }
-
-
-
-
-
-

@@ -17,14 +17,13 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -59,7 +58,7 @@ class SettingsActivity : ComponentActivity() {
             // Отображаем экран настроек.
             SettingsScreen(getAllApps = { context -> getAllApps(context) },
                 sharedPreferences = sharedPreferences,
-                getAppIconsFromKeys = { context -> getAppIconsFromKeys(context, keys) } )
+                getAppIconsFromKeys = { context -> getAppIconsFromKeys(context, keys) })
         }
         logSharedPreferencesContents(sharedPreferences)
 
@@ -144,14 +143,13 @@ class SettingsActivity : ComponentActivity() {
             }
         }
     }
+
     fun logSharedPreferencesContents(sharedPreferences: SharedPreferences) {
         val allEntries = sharedPreferences.all
         for ((key, value) in allEntries) {
             Log.d("SharedPreferences__", key + ": " + value.toString())
         }
     }
-
-
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -163,10 +161,8 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     var isFloatingButtonOn by remember { mutableStateOf(false) }
-    val buttonWidth = 200.dp
     val paddings = 20.dp
     val spacingSize = 50.dp
-
 
     var appIcons by remember {
         mutableStateOf(
@@ -177,55 +173,32 @@ fun SettingsScreen(
         appIcons = getAppIconsFromKeys(context)
     }
 
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(paddings),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Switch(checked = isFloatingButtonOn, onCheckedChange = { isChecked ->
-            isFloatingButtonOn = isChecked
-            if (isChecked) {
-                context.startService(Intent(context, FloatingButtonService::class.java))
-            } else {
-                context.stopService(Intent(context, FloatingButtonService::class.java))
-            }
-        })
-        Text(text = if (isFloatingButtonOn) "Floating Button is ON" else "Floating Button is OFF")
-
-        Spacer(modifier = Modifier.size(spacingSize))
-
-        ElevatedButton(
-            onClick = {}, modifier = Modifier.width(buttonWidth)
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            modifier = Modifier.padding(paddings),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Добавить кнопку")
+            Spacer(modifier = Modifier.size(spacingSize))
+
+            SelectedAppLine(
+                appIcons = appIcons,
+                apps = getAllApps,
+                sharedPreferences = sharedPreferences,
+                updateAppIcons = updateAppIcons
+            )
+
+            Spacer(modifier = Modifier.height(spacingSize))
+
+            Switch(checked = isFloatingButtonOn, onCheckedChange = { isChecked ->
+                isFloatingButtonOn = isChecked
+                if (isChecked) {
+                    context.startService(Intent(context, FloatingButtonService::class.java))
+                } else {
+                    context.stopService(Intent(context, FloatingButtonService::class.java))
+                }
+            })
+            Text(text = if (isFloatingButtonOn) "Кнопка включена" else "Кнопка выключена")
         }
-
-        ElevatedButton(
-            onClick = {}, modifier = Modifier.width(buttonWidth)
-        ) {
-            Text("__ANY__")
-        }
-
-        ElevatedButton(
-            onClick = {}, modifier = Modifier.width(buttonWidth)
-        ) {
-            Text("__ANY__")
-        }
-
-        Spacer(modifier = Modifier.size(spacingSize))
-
-        SelectedAppLine(
-            appIcons = appIcons,
-            apps = getAllApps,
-            sharedPreferences = sharedPreferences,
-            updateAppIcons = updateAppIcons
-        )
-
-        Spacer(modifier = Modifier.height(spacingSize))
-
-//        SystemAppList(getAllApps, sharedPreferences, updateAppIcons)
     }
 }
 

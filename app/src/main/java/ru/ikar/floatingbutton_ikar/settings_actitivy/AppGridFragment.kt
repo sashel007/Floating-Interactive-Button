@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -26,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -35,48 +37,49 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 
 @Composable
 fun SystemAppList(
     key: String,
     apps: (context: Context) -> List<AppInfo>,
     sharedPreferences: SharedPreferences,
-    updateAppIcons: () -> Unit
+    updateAppIcons: () -> Unit,
+    onClose: () -> Unit  // Добавляем этот параметр
 ) {
     val context = LocalContext.current
     val appsList = apps(context)
-    val colorList = listOf(Color.Red, Color.Blue, Color.Red)
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(4),
         modifier = Modifier
-            .border(4.dp, Brush.radialGradient(colors = colorList), RectangleShape)
             .fillMaxSize()
+            .clip(RoundedCornerShape(15.dp))
+            .background(Color.White) // или любой другой цвет фона
     ) {
         items(appsList.size) { index ->
-            SystemAppItem(key, appsList[index], sharedPreferences, updateAppIcons)
+            SystemAppItem(key, appsList[index], sharedPreferences, updateAppIcons, onClose)
         }
     }
 }
 
 @Composable
 fun SystemAppItem(
-    key: String, app: AppInfo, sharedPreferences: SharedPreferences, updateAppIcons: () -> Unit
+    key: String,
+    app: AppInfo,
+    sharedPreferences: SharedPreferences,
+    updateAppIcons: () -> Unit,
+    onClose: () -> Unit  // Добавляем этот параметр
 ) {
     val iconBitmap = app.icon
     val appName = app.packageName
     var showDialog by remember { mutableStateOf(false) }
     val squaredSize = 40.dp
-    val colorList = listOf(Color.Red, Color.Green, Color.Blue)
 
     Box(contentAlignment = Alignment.Center,
         modifier = Modifier
             .padding(8.dp)
             .width(squaredSize)
             .height(squaredSize)
-            .background(color = Color.LightGray)
             .clickable { showDialog = true }) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Image(
@@ -107,6 +110,7 @@ fun SystemAppItem(
                     updateAppIcons()
 
                     showDialog = false
+                    onClose()
                 }) {
                     Text("Да")
                 }
