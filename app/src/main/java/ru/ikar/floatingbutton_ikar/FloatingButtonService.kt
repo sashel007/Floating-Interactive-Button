@@ -63,9 +63,7 @@ class FloatingButtonService : Service() {
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate() {
         super.onCreate()
-
         pm = this.packageManager
-
         // инициализация WindowManager для кастомных настроек отображения.
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         // инициализация AudioManager для управления аудио-настройками.
@@ -77,7 +75,7 @@ class FloatingButtonService : Service() {
         floatingButtonLayout =
             LayoutInflater.from(this).inflate(R.layout.floating_button_layout, null) as FrameLayout
         // Получаем ссылку на главную кнопку внутри макета floating button
-        mainButton = floatingButtonLayout.findViewById(R.id.floating_button)
+        mainButton = floatingButtonLayout.findViewById(R.id.ellipse_outer)
 
         buttons = mutableListOf(
             floatingButtonLayout.findViewById(R.id.settings_button),
