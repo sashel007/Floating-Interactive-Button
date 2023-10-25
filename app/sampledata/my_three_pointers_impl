@@ -1,10 +1,9 @@
+floating_button_layout.xml
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:id="@+id/floating_button"
-    android:background="@android:color/transparent">
-
+    android:id="@+id/floating_button">
     <!-- Outer Circle -->
     <View
         android:id="@+id/ellipse_outer"
@@ -13,14 +12,13 @@
         android:layout_gravity="center"
         android:background="@drawable/ellipse_3" />
 
-<!--    &lt;!&ndash; Inner Circle &ndash;&gt;-->
-<!--    <View-->
-<!--        android:id="@+id/ellipse_inner"-->
-<!--        android:layout_width="@dimen/ellipse_inner_dim"-->
-<!--        android:layout_height="@dimen/ellipse_inner_dim"-->
-<!--        android:layout_gravity="center"-->
-<!--        android:background="@drawable/circle_shape"/>-->
-
+    <!-- Inner Circle -->
+    <View
+        android:id="@+id/ellipse_inner"
+        android:layout_width="@dimen/ellipse_inner_dim"
+        android:layout_height="@dimen/ellipse_inner_dim"
+        android:layout_gravity="center"
+        android:background="@drawable/circle_shape"/>
     <ImageButton
         android:id="@+id/settings_button"
         android:layout_width="@dimen/button_dim"
@@ -29,7 +27,6 @@
         android:layout_marginTop="@dimen/additional_buttons_margins"
         android:layout_marginStart="@dimen/additional_buttons_margins"
         android:src="@drawable/settings_button_icon"/>
-
     <ImageButton
         android:id="@+id/volume_button"
         android:layout_width="@dimen/button_dim"
@@ -38,7 +35,6 @@
         android:layout_marginTop="@dimen/additional_buttons_margins"
         android:layout_marginStart="@dimen/additional_buttons_margins"
         android:src="@drawable/volume_button_icon"/>
-
     <ImageButton
         android:id="@+id/home_button"
         android:layout_width="@dimen/button_dim"
@@ -47,7 +43,6 @@
         android:layout_marginTop="@dimen/additional_buttons_margins"
         android:layout_marginStart="@dimen/additional_buttons_margins"
         android:src="@drawable/home_button_icon"/>
-
     <ImageButton
         android:id="@+id/brightness_button"
         android:layout_width="@dimen/button_dim"
@@ -56,7 +51,6 @@
         android:layout_marginTop="@dimen/additional_buttons_margins"
         android:layout_marginStart="@dimen/additional_buttons_margins"
         android:src="@drawable/brightness_button_icon"/>
-
     <ImageButton
         android:id="@+id/background_button"
         android:layout_width="@dimen/button_dim"
@@ -65,7 +59,6 @@
         android:layout_marginTop="@dimen/additional_buttons_margins"
         android:layout_marginStart="@dimen/additional_buttons_margins"
         android:src="@drawable/background_button_icon"/>
-
     <ImageButton
         android:id="@+id/any_button"
         android:layout_width="@dimen/button_dim"
@@ -74,6 +67,49 @@
         android:layout_marginTop="@dimen/additional_buttons_margins"
         android:layout_marginStart="@dimen/additional_buttons_margins"
         android:src="@drawable/any_button_icon"/>
-
-
 </FrameLayout>
+    private lateinit var testView: View
+        testView = floatingButtonLayout.findViewById(R.id.floating_button)
+testView.setOnTouchListener { v, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_POINTER_DOWN -> {
+                    if (event.pointerCount == 3) {
+                        handleThreeFingers(event, mainButton)
+                    }
+                }
+
+                MotionEvent.ACTION_POINTER_UP -> {
+                    if (event.pointerCount == 3) {
+                        mainButton.visibility = View.INVISIBLE
+                    }
+
+                }
+            }
+
+            true
+        }
+private fun distance(x1: Float, y1: Float, x2: Float, y2: Float): Float {
+        return sqrt((x2 - x1).pow(2) + (y2 - y1).pow(2))
+    }
+
+    private fun handleThreeFingers(event: MotionEvent, button: View) {
+        // Вычисляем центр между тремя пальцами
+        var totalWeightedX = 0f
+        var totalWeightedY = 0f
+        var totalDistance = 0f
+
+        for (i in 0 until 3) {
+            val nextIndex = (i + 1) % 3
+            val distance =
+                distance(event.getX(i), event.getY(i), event.getX(nextIndex), event.getY(nextIndex))
+            totalWeightedX += distance * event.getX(i)
+            totalWeightedY += distance * event.getY(i)
+            totalDistance += distance
+        }
+        val x = totalWeightedX / totalDistance
+        val y = totalWeightedY / totalDistance
+        // Показываем кнопку в этой позиции
+        button.x = x - button.width / 2
+        button.y = y - button.height / 2
+        button.visibility = View.VISIBLE
+    }

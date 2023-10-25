@@ -55,7 +55,7 @@ class SettingsActivity : ComponentActivity() {
             "package_name_key_4"
         )
         setContent {
-            // Отображаем экран настроек.
+            // Отображаем экран настроек
             SettingsScreen(getAllApps = { context -> getAllApps(context) },
                 sharedPreferences = sharedPreferences,
                 getAppIconsFromKeys = { context -> getAppIconsFromKeys(context, keys) })

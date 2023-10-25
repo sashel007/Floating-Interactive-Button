@@ -2,12 +2,15 @@ package ru.ikar.floatingbutton_ikar
 
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.media.AudioManager
+import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -22,7 +25,10 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.SeekBar
+import androidx.core.app.NotificationCompat
 import kotlin.math.abs
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 class FloatingButtonService : Service() {
 
@@ -49,6 +55,8 @@ class FloatingButtonService : Service() {
     private lateinit var floatingButtonLayout: View
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var packageNames: List<String>
+    private lateinit var testView: View
+    private lateinit var overlayView: View
     private val collapseRunnable = Runnable {
         Log.d("CollapseRunnable", "Running collapse")
         if (isExpanded) {
@@ -73,6 +81,9 @@ class FloatingButtonService : Service() {
         // инфлейтим макет кнопки (floating button).
         floatingButtonLayout =
             LayoutInflater.from(this).inflate(R.layout.floating_button_layout, null) as FrameLayout
+        testView = floatingButtonLayout.findViewById(R.id.floating_button)
+        overlayView =
+            LayoutInflater.from(this).inflate(R.layout.fullscreen_overlay, null) as FrameLayout
         // Получаем ссылку на главную кнопку внутри макета floating button
         mainButton = floatingButtonLayout.findViewById(R.id.ellipse_outer)
 
@@ -134,9 +145,49 @@ class FloatingButtonService : Service() {
                 WindowManager.LayoutParams.TYPE_PHONE
             },
             // вьюшка не потребялет фокус и не мешает тыкать по остальным элементам экрана
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             android.graphics.PixelFormat.TRANSLUCENT // задаёт параметр полупрозрачности
         )
+
+        windowManager.addView(overlayView, params)
+
+        overlayView.setOnTouchListener { _, event ->
+            when (event.pointerCount) {
+                3 -> {
+                    // Вычисляем центр между тремя пальцами
+                    var totalWeightedX = 0f
+                    var totalWeightedY = 0f
+                    var totalDistance = 0f
+
+                    for (i in 0 until 3) {
+                        Log.d("итерация", "i=$i")
+                        val nextIndex = (i + 1) % 3
+                        val distance = distance(
+                            event.getX(i),
+                            event.getY(i),
+                            event.getX(nextIndex),
+                            event.getY(nextIndex)
+                        )
+                        totalWeightedX += distance * event.getX(i)
+                        totalWeightedY += distance * event.getY(i)
+                        totalDistance += distance
+                    }
+                    val x = totalWeightedX / totalDistance
+                    val y = totalWeightedY / totalDistance
+                    // Показываем кнопку в этой позиции
+                    mainButton.x = x - mainButton.width / 2
+                    mainButton.y = y - mainButton.height / 2
+                    mainButton.visibility = View.VISIBLE
+
+                    true // Потребляем событие
+                }
+
+                else -> {
+                    false // Не потребляем событие
+                }
+            }
+        }
+
 
         if (floatingButtonLayout.parent == null) {
             floatingButtonLayout.post {
@@ -146,72 +197,111 @@ class FloatingButtonService : Service() {
         }
 
         floatingButtonLayout.setOnTouchListener { _, event ->
-            when (event.actionMasked) {
-                // Обработка действий при первом касании пальца (new pointer)
-                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
-                    // Если это касание одним пальцем то выполняется этот блок:
-                    // Установка исходного значения прозрачности для кнопки.
-                    changeOpacity(initialOpacity)
-                    // Сохраняем исходную позицию кнпоки.
-                    initialX = params.x
-                    initialY = params.y
-                    // Сохраняем исходную позицию пальца
-                    initialTouchX = event.rawX
-                    initialTouchY = event.rawY
-                    // Обновляем флаг определения движения.
-                    hasMoved = false
-                    // Сохраняем последнее действие при касании.
-                    lastAction = event.action
-                    Log.d("setOnTouchListener", "finger_down")
-                    return@setOnTouchListener false // Пока что не потребляем событие
-                }
-                // Блок, где определяется подъём пальца от кнопки.
-                MotionEvent.ACTION_UP -> {
-                    // Устанавливаем кнопку в состоянии полупрозрачности на 0.2f
-                    floatingButtonLayout.postDelayed({
-                        changeOpacity(opacity)
-                    }, opacityDuration)
+            when {
+                event.pointerCount == 1 -> {
+                    when (event.actionMasked) {
+                        // Обработка действий при первом касании пальца (new pointer)
+                        MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
+                            // Если это касание одним пальцем то выполняется этот блок:
+                            // Установка исходного значения прозрачности для кнопки.
+                            changeOpacity(initialOpacity)
+                            // Сохраняем исходную позицию кнпоки.
+                            initialX = params.x
+                            initialY = params.y
+                            // Сохраняем исходную позицию пальца
+                            initialTouchX = event.rawX
+                            initialTouchY = event.rawY
+                            // Обновляем флаг определения движения.
+                            hasMoved = false
+                            // Сохраняем последнее действие при касании.
+                            lastAction = event.action
+                            Log.d("setOnTouchListener", "finger_down")
+                            return@setOnTouchListener false // Пока что не потребляем событие
+                        }
+                        // Блок, где определяется подъём пальца от кнопки.
+                        MotionEvent.ACTION_UP -> {
+                            // Устанавливаем кнопку в состоянии полупрозрачности на 0.2f
+                            floatingButtonLayout.postDelayed({
+                                changeOpacity(opacity)
+                            }, opacityDuration)
 
-                    // Если кнопка не сдвинулась дальше 10 пикселей на любой из осей, то считать это нажатием.
-                    if (!hasMoved && abs(initialTouchX - event.rawX) < 10 && abs(
-                            initialTouchY - event.rawY
-                        ) < 10
-                    ) {
-                        toggleButtonsVisibility(buttons, mainButton)
-                        // Отменяем сворачивание.
-                        handler.removeCallbacks(collapseRunnable)
-                        return@setOnTouchListener false
-                    } else {
-                        // Сохраняем и возвращаем в лямбду последнее касание.
-                        lastAction = event.action
-                        Log.d("finger up", "up_")
-                        return@setOnTouchListener true
+                            // Если кнопка не сдвинулась дальше 10 пикселей на любой из осей, то считать это нажатием.
+                            if (!hasMoved && abs(initialTouchX - event.rawX) < 10 && abs(
+                                    initialTouchY - event.rawY
+                                ) < 10
+                            ) {
+                                toggleButtonsVisibility(buttons, mainButton)
+                                // Отменяем сворачивание.
+                                handler.removeCallbacks(collapseRunnable)
+                                return@setOnTouchListener false
+                            } else {
+                                // Сохраняем и возвращаем в лямбду последнее касание.
+                                lastAction = event.action
+                                Log.d("finger up", "up_")
+                                return@setOnTouchListener true
+                            }
+                        }
+                        // Блок, фиксирующий движение пальца.
+                        MotionEvent.ACTION_MOVE -> {
+                            // Обновляем координаты  X и Y на основе движения пальцем.
+                            params.x = initialX + (event.rawX - initialTouchX).toInt()
+                            params.y = initialY + (event.rawY - initialTouchY).toInt()
+                            // Обновляем позицию кнопки по новым координатам
+                            windowManager.updateViewLayout(floatingButtonLayout, params)
+                            lastAction = event.action
+                            // Определяем, надо ли фиксировать движение (если палец ушёл дальше 10 пикселей)
+                            // Если надо, то устанавливаем флаг на hasMoved
+                            if (abs(initialTouchX - event.rawX) > 10 || abs(initialTouchY - event.rawY) > 10) {
+                                hasMoved = true
+                            }
+                            Log.d("move across", "across___")
+                            return@setOnTouchListener true // Потребляем событие, так как это движение
+                        }
+
+                        else -> return@setOnTouchListener false
                     }
                 }
-                // Блок, фиксирующий движение пальца.
-                MotionEvent.ACTION_MOVE -> {
-                    // Обновляем координаты  X и Y на основе движения пальцем.
-                    params.x = initialX + (event.rawX - initialTouchX).toInt()
-                    params.y = initialY + (event.rawY - initialTouchY).toInt()
-                    // Обновляем позицию кнопки по новым координатам
-                    windowManager.updateViewLayout(floatingButtonLayout, params)
-                    lastAction = event.action
-                    // Определяем, надо ли фиксировать движение (если палец ушёл дальше 10 пикселей)
-                    // Если надо, то устанавливаем флаг на hasMoved
-                    if (abs(initialTouchX - event.rawX) > 10 || abs(initialTouchY - event.rawY) > 10) {
-                        hasMoved = true
+
+                event.pointerCount == 3 -> {
+                    // Вычисляем центр между тремя пальцами
+                    var totalWeightedX = 0f
+                    var totalWeightedY = 0f
+                    var totalDistance = 0f
+
+                    for (i in 0 until 3) {
+                        Log.d("итерация", "i=$i")
+                        val nextIndex = (i + 1) % 3
+                        val distance =
+                            distance(
+                                event.getX(i),
+                                event.getY(i),
+                                event.getX(nextIndex),
+                                event.getY(nextIndex)
+                            )
+                        totalWeightedX += distance * event.getX(i)
+                        totalWeightedY += distance * event.getY(i)
+                        totalDistance += distance
                     }
-                    Log.d("move across", "across___")
-                    return@setOnTouchListener true // Потребляем событие, так как это движение
+                    val x = totalWeightedX / totalDistance
+                    val y = totalWeightedY / totalDistance
+                    // Показываем кнопку в этой позиции
+                    mainButton.x = x - mainButton.width / 2
+                    mainButton.y = y - mainButton.height / 2
+                    mainButton.visibility = View.VISIBLE
+
+                    return@setOnTouchListener true
                 }
 
-                else -> return@setOnTouchListener false // Для всех остальных событий возвращаем false
+                else -> return@setOnTouchListener false
+
             }
         }
 
         volumeSlider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             // этот метод тригерится каждый раз, когда изменяется значение ползунка.
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+            override fun onProgressChanged(
+                seekBar: SeekBar?, progress: Int, fromUser: Boolean
+            ) {
                 // проверяет, сделано ли изменение пользователем (а не программно)
                 if (fromUser) {
                     // Обновляет громкость исходя из значений ползунка.
@@ -474,4 +564,57 @@ class FloatingButtonService : Service() {
         }
         return packageNames
     }
+
+    private fun distance(x1: Float, y1: Float, x2: Float, y2: Float): Float {
+        return sqrt((x2 - x1).pow(2) + (y2 - y1).pow(2))
+    }
+
+    private fun handleThreeFingers(event: MotionEvent, button: View) {
+        // Вычисляем центр между тремя пальцами
+        var totalWeightedX = 0f
+        var totalWeightedY = 0f
+        var totalDistance = 0f
+
+        for (i in 0 until 3) {
+            Log.d("итерация", "i=$i")
+            val nextIndex = (i + 1) % 3
+            val distance =
+                distance(event.getX(i), event.getY(i), event.getX(nextIndex), event.getY(nextIndex))
+            totalWeightedX += distance * event.getX(i)
+            totalWeightedY += distance * event.getY(i)
+            totalDistance += distance
+        }
+        val x = totalWeightedX / totalDistance
+        val y = totalWeightedY / totalDistance
+        // Показываем кнопку в этой позиции
+        button.x = x - button.width / 2
+        button.y = y - button.height / 2
+        button.visibility = View.VISIBLE
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val SERVICE_CHANNEL_ID = "fab_service_channel"
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val serviceChannel = NotificationChannel(
+                SERVICE_CHANNEL_ID,
+                "Foreground Service Channel",
+                NotificationManager.IMPORTANCE_DEFAULT
+            )
+
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(serviceChannel)
+        }
+
+        val notification = NotificationCompat.Builder(this, SERVICE_CHANNEL_ID)
+            .setContentTitle("FAB_Service")
+            .setContentText("Сервис запущен")
+            .setSmallIcon(R.drawable.ic_launcher_background)
+            .build()
+
+        startForeground(1123124590, notification)
+
+        return START_NOT_STICKY
+    }
+
 }
