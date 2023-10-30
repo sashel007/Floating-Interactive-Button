@@ -4,10 +4,13 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Bundle
 import android.util.Log
 
 // Извлекаем и обрабатываем сообщения бродкаста (интенты) от системы и сторонних приложений.
 class BootReceiver : BroadcastReceiver() {
+
+    private val INTENT_NAME = "FivePointReceiver"
 
     // Вызываем метод, когда приходит интент от бродкаста.
     override fun onReceive(context: Context?, intent: Intent?) {
@@ -27,15 +30,6 @@ class BootReceiver : BroadcastReceiver() {
             context?.startService(serviceIntent)
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (context != null) {
-                context.startForegroundService(Intent(context, FloatingButtonService::class.java))
-            }
-        } else {
-            if (context != null) {
-                context.startService(Intent(context, FloatingButtonService::class.java))
-            }
-        }
-        Log.d("BootReceiver", "onReceive")
+
     }
 }

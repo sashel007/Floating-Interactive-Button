@@ -75,5 +75,4 @@
         android:layout_marginStart="@dimen/additional_buttons_margins"
         android:src="@drawable/any_button_icon"/>
 
-
 </FrameLayout>

@@ -32,12 +32,17 @@
         <service
             android:name=".FloatingButtonService"
             android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </service>
 
         <receiver android:name=".BootReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="com.xbh.fivePoint"/>
             </intent-filter>
         </receiver>
 

@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "ru.ikar.floatingbutton_ikar"
-    compileSdk = 33
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "ru.ikar.floatingbutton_ikar"

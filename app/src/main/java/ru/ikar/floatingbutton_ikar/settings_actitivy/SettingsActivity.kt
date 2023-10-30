@@ -62,18 +62,19 @@ class SettingsActivity : ComponentActivity() {
         }
         logSharedPreferencesContents(sharedPreferences)
 
-
         // Проверка разрешения на отображение поверх других приложений.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+        if (!Settings.canDrawOverlays(this)) {
+            // Если у нас нет разрешения и версия ОС >= Marshmallow, то создаем намерение для запроса разрешения.
             // Если у нас нет разрешения и версия ОС >= Marshmallow, то создаем намерение для запроса разрешения.
             val intent = Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + packageName)
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:" + packageName)
             )
             // Запускаем активность для результата (для получения ответа о предоставлении разрешения).
             startActivityForResult(intent, OVERLAY_PERMISSION_REQ_CODE)
         } else {
             // Если разрешение уже предоставлено, то запускаем службу с плавающей кнопкой.
-            startFloatingButtonService()
+//            startFloatingButtonService()
         }
     }
 
@@ -82,7 +83,7 @@ class SettingsActivity : ComponentActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == OVERLAY_PERMISSION_REQ_CODE) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.canDrawOverlays(this)) {
+            if (Settings.canDrawOverlays(this)) {
                 startFloatingButtonService()
             } else {
                 // Оповестите пользователя о том, что разрешение не предоставлено и почему оно необходимо
