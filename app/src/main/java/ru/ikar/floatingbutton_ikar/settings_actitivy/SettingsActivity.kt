@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -199,6 +201,21 @@ fun SettingsScreen(
                 }
             })
             Text(text = if (isFloatingButtonOn) "Кнопка включена" else "Кнопка выключена")
+
+            Spacer(modifier = Modifier.height(100.dp))
+
+            OutlinedButton(
+                onClick = {
+                    val intent = Intent(context, FloatingButtonService::class.java)
+                    intent.putExtra("posX", 400)
+                    intent.putExtra("posY", 500)
+                    context.startService(intent)
+                    Toast.makeText(context, "PosX = 400dp, PosY = 500dp", Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.height(300.dp).width(600.dp)
+            ) {
+                Text("Установить кнопку на 300dp / 500dp")
+            }
         }
     }
 }

@@ -11,18 +11,12 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
-import android.gesture.GestureOverlayView
 import android.media.AudioManager
 import android.os.Build
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
 import android.provider.Settings
-import android.util.DisplayMetrics
 import android.util.Log
-import android.util.Size
 import android.util.TypedValue
-import android.view.Display
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -31,8 +25,7 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.SeekBar
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import java.security.AccessController.getContext
 import kotlin.math.abs
@@ -52,7 +45,6 @@ class FloatingButtonService : Service() {
     private val radius = 80f
     private var isExpanded = false // состояние кнопок (кнопки развернуты/свёрнуты)
     private var hasMoved = false
-    private val handler = Handler(Looper.getMainLooper())
     private lateinit var pm: PackageManager
     private lateinit var buttons: MutableList<View>
     private lateinit var windowManager: WindowManager
@@ -68,28 +60,31 @@ class FloatingButtonService : Service() {
     private lateinit var overlayViewLayout: View
     private val ACTION_FIVE_POINTS: String = "com.xbh.fivePoint"
 
-
     override fun onBind(intent: Intent?): IBinder? = null
 
-    @SuppressLint("ClickableViewAccessibility")
+    @SuppressLint("ClickableViewAccessibility", "UnspecifiedRegisterReceiverFlag")
     override fun onCreate() {
         super.onCreate()
 
         pm = this.packageManager
-        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager // инициализация WindowManager для кастомных настроек отображения.
-        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager // инициализация AudioManager для управления аудио-настройками.
+        windowManager =
+            getSystemService(WINDOW_SERVICE) as WindowManager // инициализация WindowManager для кастомных настроек отображения.
+        audioManager =
+            getSystemService(Context.AUDIO_SERVICE) as AudioManager // инициализация AudioManager для управления аудио-настройками.
         sharedPreferences = getSharedPreferences("app_package_names", Context.MODE_PRIVATE)
         packageNames = getPackageNamesFromSharedPreferences()
 
-        val filter: IntentFilter = IntentFilter()
+        val filter = IntentFilter()
         filter.addAction(ACTION_FIVE_POINTS)
-        registerReceiver(reciever, filter)
+        registerReceiver(broadcastReceiver, filter)
 
         // инфлейтим макет кнопки (floating button).
-        floatingButtonLayout = LayoutInflater.from(this).inflate(R.layout.floating_button_layout, null) as FrameLayout
+        floatingButtonLayout =
+            LayoutInflater.from(this).inflate(R.layout.floating_button_layout, null) as FrameLayout
         testView = floatingButtonLayout.findViewById(R.id.floating_button)
         // прозрачный оверлей
-        overlayViewLayout = LayoutInflater.from(this).inflate(R.layout.fullscreen_overlay, null) as FrameLayout
+        overlayViewLayout =
+            LayoutInflater.from(this).inflate(R.layout.fullscreen_overlay, null) as FrameLayout
         // Получаем ссылку на главную кнопку внутри макета floating button
         mainButton = floatingButtonLayout.findViewById(R.id.ellipse_outer)
 
@@ -155,14 +150,13 @@ class FloatingButtonService : Service() {
             android.graphics.PixelFormat.TRANSLUCENT // задаёт параметр полупрозрачности
         )
 
-        val displayMetrics = DisplayMetrics()
-        windowManager.defaultDisplay.getMetrics(displayMetrics)
-        initialX = displayMetrics.heightPixels / 2
-        initialY = displayMetrics.widthPixels / 2
-
-        initialTouchX = (displayMetrics.heightPixels / 2).toFloat()
-        initialTouchY = (displayMetrics.widthPixels / 2).toFloat()
-
+//        val displayMetrics = DisplayMetrics()
+//        windowManager.defaultDisplay.getMetrics(displayMetrics)
+//        initialX = displayMetrics.heightPixels / 2
+//        initialY = displayMetrics.widthPixels / 2
+//
+//        initialTouchX = (displayMetrics.heightPixels / 2).toFloat()
+//        initialTouchY = (displayMetrics.widthPixels / 2).toFloat()
 
         if (floatingButtonLayout.parent == null) {
             floatingButtonLayout.post {
@@ -172,100 +166,64 @@ class FloatingButtonService : Service() {
         }
 
         floatingButtonLayout.setOnTouchListener { _, event ->
-            when (event.pointerCount) {
-                1 -> {
-                    when (event.actionMasked) {
-                        // Обработка действий при первом касании пальца (new pointer)
-                        MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
-                            // Если это касание одним пальцем то выполняется этот блок:
-                            // Установка исходного значения прозрачности для кнопки.
-                            changeOpacity(initialOpacity)
-                            // Сохраняем исходную позицию кнпоки.
-                            initialX = params.x
-                            initialY = params.y
-                            // Сохраняем исходную позицию пальца
-                            initialTouchX = event.rawX
-                            initialTouchY = event.rawY
-                            // Обновляем флаг определения движения.
-                            hasMoved = false
-                            // Сохраняем последнее действие при касании.
-                            lastAction = event.action
-                            Log.d("setOnTouchListener", "finger_down")
-                            return@setOnTouchListener false // Пока что не потребляем событие
-                        }
-                        // Блок, где определяется подъём пальца от кнопки.
-                        MotionEvent.ACTION_UP -> {
-                            // Устанавливаем кнопку в состоянии полупрозрачности на 0.2f
-                            floatingButtonLayout.postDelayed({
-                                changeOpacity(opacity)
-                            }, opacityDuration)
+            when (event.actionMasked) {
+                // Обработка действий при первом касании пальца (new pointer)
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
+                    // Если это касание одним пальцем то выполняется этот блок:
+                    // Установка исходного значения прозрачности для кнопки.
+                    changeOpacity(initialOpacity)
+                    // Сохраняем исходную позицию кнпоки.
+                    initialX = params.x
+                    initialY = params.y
+                    // Сохраняем исходную позицию пальца
+                    initialTouchX = event.rawX
+                    initialTouchY = event.rawY
+                    // Обновляем флаг определения движения.
+                    hasMoved = false
+                    // Сохраняем последнее действие при касании.
+                    lastAction = event.action
+                    Log.d("setOnTouchListener", "finger_down")
+                    return@setOnTouchListener false // Пока что не потребляем событие
+                }
+                // Блок, где определяется подъём пальца от кнопки.
+                MotionEvent.ACTION_UP -> {
+                    // Устанавливаем кнопку в состоянии полупрозрачности на 0.2f
+                    floatingButtonLayout.postDelayed({
+                        changeOpacity(opacity)
+                    }, opacityDuration)
 
-                            // Если кнопка не сдвинулась дальше 10 пикселей на любой из осей, то считать это нажатием.
-                            if (!hasMoved && abs(initialTouchX - event.rawX) < 10 && abs(
-                                    initialTouchY - event.rawY
-                                ) < 10
-                            ) {
-                                toggleButtonsVisibility(buttons, mainButton)
-                                // Отменяем сворачивание.
-                                //                                handler.removeCallbacks(collapseRunnable)
-                                return@setOnTouchListener false
-                            } else {
-                                // Сохраняем и возвращаем в лямбду последнее касание.
-                                lastAction = event.action
-                                Log.d("finger up", "up_")
-                                return@setOnTouchListener true
-                            }
-                        }
-                        // Блок, фиксирующий движение пальца.
-                        MotionEvent.ACTION_MOVE -> {
-                            // Обновляем координаты  X и Y на основе движения пальцем.
-                            params.x = initialX + (event.rawX - initialTouchX).toInt()
-                            params.y = initialY + (event.rawY - initialTouchY).toInt()
-                            Log.d("PARAMS_X", "$params.x  $params.y")
-                            // Обновляем позицию кнопки по новым координатам
-                            windowManager.updateViewLayout(floatingButtonLayout, params)
-                            lastAction = event.action
-                            // Определяем, надо ли фиксировать движение (если палец ушёл дальше 10 пикселей)
-                            // Если надо, то устанавливаем флаг на hasMoved
-                            if (abs(initialTouchX - event.rawX) > 10 || abs(initialTouchY - event.rawY) > 10) {
-                                hasMoved = true
-                            }
-                            Log.d("move across", "across___")
-                            return@setOnTouchListener true // Потребляем событие, так как это движение
-                        }
-
-                        else -> return@setOnTouchListener false
+                    // Если кнопка не сдвинулась дальше 10 пикселей на любой из осей, то считать это нажатием.
+                    if (!hasMoved && abs(initialTouchX - event.rawX) < 10 && abs(
+                            initialTouchY - event.rawY
+                        ) < 10
+                    ) {
+                        toggleButtonsVisibility(buttons, mainButton)
+                        // Отменяем сворачивание.
+                        //                                handler.removeCallbacks(collapseRunnable)
+                        return@setOnTouchListener false
+                    } else {
+                        // Сохраняем и возвращаем в лямбду последнее касание.
+                        lastAction = event.action
+                        Log.d("finger up", "up_")
+                        return@setOnTouchListener true
                     }
                 }
-
-                3 -> {
-                    // Вычисляем центр между тремя пальцами
-                    var totalWeightedX = 0f
-                    var totalWeightedY = 0f
-                    var totalDistance = 0f
-
-                    for (i in 0 until 3) {
-                        Log.d("итерация", "i=$i")
-                        val nextIndex = (i + 1) % 3
-                        val distance =
-                            distance(
-                                event.getX(i),
-                                event.getY(i),
-                                event.getX(nextIndex),
-                                event.getY(nextIndex)
-                            )
-                        totalWeightedX += distance * event.getX(i)
-                        totalWeightedY += distance * event.getY(i)
-                        totalDistance += distance
+                // Блок, фиксирующий движение пальца.
+                MotionEvent.ACTION_MOVE -> {
+                    // Обновляем координаты  X и Y на основе движения пальцем.
+                    params.x = initialX + (event.rawX - initialTouchX).toInt()
+                    params.y = initialY + (event.rawY - initialTouchY).toInt()
+                    Log.d("PARAMS_X", "$params.x  $params.y")
+                    // Обновляем позицию кнопки по новым координатам
+                    windowManager.updateViewLayout(floatingButtonLayout, params)
+                    lastAction = event.action
+                    // Определяем, надо ли фиксировать движение (если палец ушёл дальше 10 пикселей)
+                    // Если надо, то устанавливаем флаг на hasMoved
+                    if (abs(initialTouchX - event.rawX) > 10 || abs(initialTouchY - event.rawY) > 10) {
+                        hasMoved = true
                     }
-                    val x = totalWeightedX / totalDistance
-                    val y = totalWeightedY / totalDistance
-                    // Показываем кнопку в этой позиции
-                    mainButton.x = x - mainButton.width / 2
-                    mainButton.y = y - mainButton.height / 2
-                    mainButton.visibility = View.VISIBLE
-
-                    return@setOnTouchListener true
+                    Log.d("move across", "across___")
+                    return@setOnTouchListener true // Потребляем событие, так как это движение
                 }
 
                 else -> return@setOnTouchListener false
@@ -314,7 +272,9 @@ class FloatingButtonService : Service() {
      * @param radius Расстояние от главной кнопки до доп.кнопок.
      */
 
-    private fun positionSurroundingButtons(mainButton: View, selectedButtons: List<View>, radius: Float) {
+    private fun positionSurroundingButtons(
+        mainButton: View, selectedButtons: List<View>, radius: Float
+    ) {
         // Рассчитываем центральные координаты главной кнпоки по осям Х/Y.
         val mainButtonCenterX = mainButton.x + mainButton.width / 2
         val mainButtonCenterY = mainButton.y + mainButton.height / 2
@@ -359,7 +319,8 @@ class FloatingButtonService : Service() {
                     .y(mainButton.y + mainButton.height / 2 - button.height / 2)
                     .setDuration(300) // Длительность анимации в миллисек.
                     .withEndAction {
-                        button.visibility = View.INVISIBLE // После проигрывания анимации, спрятать кнопки.
+                        button.visibility =
+                            View.INVISIBLE // После проигрывания анимации, спрятать кнопки.
                         Log.d("toggleVisibility", "Button collapsed and hidden")
                     }.start()
             }
@@ -368,19 +329,23 @@ class FloatingButtonService : Service() {
             // Кнопки уже свёрнуты, надо их развернуть
             for ((index, button) in selectedButtons.withIndex()) {
                 // Рассчитаем последнюю позицию кнопки.
-                val (finalX, finalY) = calculateFinalPosition(button, mainButton, index, selectedButtons.size)
+                val (finalX, finalY) = calculateFinalPosition(
+                    button, mainButton, index, selectedButtons.size
+                )
                 Log.d("toggleVisibility", "Button $index final position: x=$finalX, y=$finalY")
                 // Установим исходную позицию кнопки в центре основной кнопки
                 button.x = mainButton.x + mainButton.width / 2 - button.width / 2
                 button.y = mainButton.y + mainButton.height / 2 - button.height / 2
                 button.visibility = View.VISIBLE // Сделаем кнопку видимой.
                 Log.d("toggleVisibility", "Button $index set to initial position and made visible")
-                button.animate().x(finalX).y(finalY) // Санимируем кнопку для перехода в финальную позицию
+                button.animate().x(finalX)
+                    .y(finalY) // Санимируем кнопку для перехода в финальную позицию
                     .setDuration(300) // Длительность анимации в миллисек.
                     .start()
             }
         }
-        isExpanded = !isExpanded // Меняем состояние развёрнутости (если развёрнуто, свернём - и обратно)
+        isExpanded =
+            !isExpanded // Меняем состояние развёрнутости (если развёрнуто, свернём - и обратно)
     }
 
     /**
@@ -392,7 +357,9 @@ class FloatingButtonService : Service() {
      * @param totalButtons Количество кнопок, которые надо равномерно распределить.
      * @return Возвращаем Float-значение, в которое вкладываем X/Y координаты кнопок.
      */
-    private fun calculateFinalPosition(button: View, mainButton: View, index: Int, totalButtons: Int): Pair<Float, Float> {
+    private fun calculateFinalPosition(
+        button: View, mainButton: View, index: Int, totalButtons: Int
+    ): Pair<Float, Float> {
         val mainButtonCenterX = mainButton.x + mainButton.width / 2
         val mainButtonCenterY = mainButton.y + mainButton.height / 2
         val angleIncrement = 360.0 / totalButtons
@@ -456,7 +423,7 @@ class FloatingButtonService : Service() {
         }
         // Всегда удаляем кнопку на экране, если сервис прекращает выполнение.
         windowManager.removeView(floatingButtonLayout)
-        unregisterReceiver(reciever)
+        unregisterReceiver(broadcastReceiver)
     }
 
     //обработчик кнопки "Громкость"
@@ -534,6 +501,8 @@ class FloatingButtonService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val SERVICE_CHANNEL_ID = "fab_service_channel"
+        val posXKey = "posX"
+        val posYKey = "posY"
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
@@ -547,50 +516,39 @@ class FloatingButtonService : Service() {
             notificationManager.createNotificationChannel(serviceChannel)
         }
 
-        val notification = NotificationCompat.Builder(this, SERVICE_CHANNEL_ID)
-            .setContentTitle("FAB_Service")
-            .setContentText("Сервис запущен")
-            .setSmallIcon(R.drawable.ic_launcher_background)
-            .build()
+        val notification =
+            NotificationCompat.Builder(this, SERVICE_CHANNEL_ID).setContentTitle("FAB_Service")
+                .setContentText("Сервис запущен").setSmallIcon(R.drawable.ic_launcher_background)
+                .build()
 
         startForeground(1123124590, notification)
 
+        if (intent != null) {
+            params.x = intent.getIntExtra(posXKey, 0)
+            params.y = intent.getIntExtra(posYKey, 0)
+            windowManager.updateViewLayout(floatingButtonLayout, params)
+        }
         return START_NOT_STICKY
     }
 
-    private val reciever: BroadcastReceiver = object : BroadcastReceiver() {
+    private val broadcastReceiver: BroadcastReceiver = object : BroadcastReceiver() {
         private val ACTION_FIVE_POINTS = "com.xbh.fivePoint"
 
         override fun onReceive(context: Context, intent: Intent) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context?.startForegroundService(Intent(context, FloatingButtonService::class.java))
+                context.startForegroundService(Intent(context, FloatingButtonService::class.java))
             } else {
-                context?.startService(Intent(context, FloatingButtonService::class.java))
+                context.startService(Intent(context, FloatingButtonService::class.java))
             }
             Log.d("BootReceiver", "onReceive")
 
-            if (intent != null) {
-                if (intent.action == ACTION_FIVE_POINTS) {
-                    val posX: Int? = intent.extras?.getInt("PosX")
-                    val posY: Int? = intent.extras?.getInt("PosY")
-
-                    if (posX != null) { initialX = posX }
-                    if (posY != null) { initialY = posY }
-
-                    if (posX != null) { initialTouchX = posX.toFloat() }
-                    if (posY != null) { initialTouchY = posY.toFloat() }
-
-                    Log.d("TAG__","$posX $posY")
-                    if (posX != null) {
-                        params.x = initialX + (posX - initialTouchX).toInt()
-                    }
-                    if (posY != null) {
-                        params.y = initialY + (posY - initialTouchY).toInt()
-                    }
-                    windowManager.updateViewLayout(floatingButtonLayout, params)
-                }
+            if (intent.action == ACTION_FIVE_POINTS) {
+                val posX: Int? = intent.extras?.getInt("PosX")
+                val posY: Int? = intent.extras?.getInt("PosY")
+                params.x = posX!!
+                params.y = posY!!
+                windowManager.updateViewLayout(floatingButtonLayout, params)
             }
         }
     }
-
 }
