@@ -1,5 +1,8 @@
 package ru.ikar.floatingbutton_ikar.settings_actitivy
 
+import android.app.ActivityManager
+import android.app.ActivityManager.RunningServiceInfo
+import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -51,16 +54,15 @@ class SettingsActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         sharedPreferences = getSharedPreferences("app_package_names", Context.MODE_PRIVATE)
         val keys = listOf(
-            "package_name_key_1",
-            "package_name_key_2",
-            "package_name_key_3",
-            "package_name_key_4"
+            "package_name_key_1", "package_name_key_2", "package_name_key_3", "package_name_key_4"
         )
         setContent {
             // Отображаем экран настроек
             SettingsScreen(getAllApps = { context -> getAllApps(context) },
                 sharedPreferences = sharedPreferences,
-                getAppIconsFromKeys = { context -> getAppIconsFromKeys(context, keys) })
+                getAppIconsFromKeys = { context -> getAppIconsFromKeys(context, keys) },
+                getRunningService = { serviceClass -> isMyServiceRunning(serviceClass) }
+            )
         }
         logSharedPreferencesContents(sharedPreferences)
 
@@ -69,8 +71,7 @@ class SettingsActivity : ComponentActivity() {
             // Если у нас нет разрешения и версия ОС >= Marshmallow, то создаем намерение для запроса разрешения.
             // Если у нас нет разрешения и версия ОС >= Marshmallow, то создаем намерение для запроса разрешения.
             val intent = Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:" + packageName)
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + packageName)
             )
             // Запускаем активность для результата (для получения ответа о предоставлении разрешения).
             startActivityForResult(intent, OVERLAY_PERMISSION_REQ_CODE)
@@ -153,6 +154,14 @@ class SettingsActivity : ComponentActivity() {
             Log.d("SharedPreferences__", key + ": " + value.toString())
         }
     }
+
+    private fun isMyServiceRunning(serviceClass: Class<out Service>): Boolean {
+        val manager: ActivityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        for (service: RunningServiceInfo in manager.getRunningServices(Integer.MAX_VALUE)) {
+            if (serviceClass.name.equals(service.service.className)) return true
+        }
+        return false
+    }
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -160,7 +169,8 @@ class SettingsActivity : ComponentActivity() {
 fun SettingsScreen(
     getAllApps: (context: Context) -> List<AppInfo>,
     sharedPreferences: SharedPreferences,
-    getAppIconsFromKeys: (context: Context) -> List<ImageBitmap>
+    getAppIconsFromKeys: (context: Context) -> List<ImageBitmap>,
+    getRunningService: (Class<out Service>) -> Boolean
 ) {
     val context = LocalContext.current
     var isFloatingButtonOn by remember { mutableStateOf(false) }
@@ -192,14 +202,16 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(spacingSize))
 
-            Switch(checked = isFloatingButtonOn, onCheckedChange = { isChecked ->
-                isFloatingButtonOn = isChecked
-                if (isChecked) {
-                    context.startService(Intent(context, FloatingButtonService::class.java))
-                } else {
-                    context.stopService(Intent(context, FloatingButtonService::class.java))
-                }
-            })
+            Switch(
+                checked = getRunningService(FloatingButtonService::class.java),
+                onCheckedChange = { isChecked ->
+                    isFloatingButtonOn = isChecked
+                    if (isChecked) {
+                        context.startService(Intent(context, FloatingButtonService::class.java))
+                    } else {
+                        context.stopService(Intent(context, FloatingButtonService::class.java))
+                    }
+                })
             Text(text = if (isFloatingButtonOn) "Кнопка включена" else "Кнопка выключена")
 
             Spacer(modifier = Modifier.height(100.dp))
@@ -211,8 +223,9 @@ fun SettingsScreen(
                     intent.putExtra("posY", 500)
                     context.startService(intent)
                     Toast.makeText(context, "PosX = 400dp, PosY = 500dp", Toast.LENGTH_SHORT).show()
-                },
-                modifier = Modifier.height(300.dp).width(600.dp)
+                }, modifier = Modifier
+                    .height(300.dp)
+                    .width(600.dp)
             ) {
                 Text("Установить кнопку на 300dp / 500dp")
             }
