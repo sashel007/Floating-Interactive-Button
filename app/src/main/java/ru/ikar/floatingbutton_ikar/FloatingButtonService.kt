@@ -18,8 +18,11 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
+import android.util.DisplayMetrics
 import android.util.Log
+import android.util.Size
 import android.util.TypedValue
+import android.view.Display
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -28,7 +31,10 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.SeekBar
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.core.app.NotificationCompat
+import java.security.AccessController.getContext
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.sqrt
@@ -134,6 +140,8 @@ class FloatingButtonService : Service() {
             }
         }
 
+
+
         setListenersForButtons()
 
         Log.d("DEBUG", "selectedButtons: $buttons")
@@ -143,6 +151,7 @@ class FloatingButtonService : Service() {
         volumeSlider = volumeSliderLayout.findViewById(R.id.volume_slider)
         // Определеяем параметры макета для отображения вьюшки с кнопкой.
         // Эти настройки определяют то, как вьюшка отображается на экране.
+
         params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -153,33 +162,52 @@ class FloatingButtonService : Service() {
                 //старый легаси параметр для перекрытия вьюшки над остальными элементами телефона
                 WindowManager.LayoutParams.TYPE_PHONE
             },
+
             // вьюшка не потребялет фокус и не мешает тыкать по остальным элементам экрана
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             android.graphics.PixelFormat.TRANSLUCENT // задаёт параметр полупрозрачности
         )
 
-        val overlayParams = FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.MATCH_PARENT
-        )
-        overlayViewLayout.layoutParams = overlayParams
+        val displayMetrics = DisplayMetrics()
 
-        overlayViewLayout.setOnTouchListener { v, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    // Действие при начальном касании
-                    Log.d("OnTouchListener", "FrameLayout touched!")
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    // Действие при движении пальца по экрану
-                }
-                MotionEvent.ACTION_UP -> {
-                    // Действие при отпускании пальца
-                }
-                // Добавьте другие действия, если это необходимо
-            }
-            return@setOnTouchListener true  // Событие обработано
-        }
+        // on below line we are getting metrics
+        // for display using window manager.
+        windowManager.defaultDisplay.getMetrics(displayMetrics)
+
+        // on below line we are getting height
+        // and width using display metrics.
+        initialX = displayMetrics.heightPixels / 2
+        initialY = displayMetrics.widthPixels / 2
+
+//        initialX = params.x
+//        initialY = params.y
+
+
+        initialTouchX = (displayMetrics.heightPixels / 2).toFloat()
+        initialTouchY = (displayMetrics.widthPixels / 2).toFloat()
+
+//        val overlayParams = FrameLayout.LayoutParams(
+//            FrameLayout.LayoutParams.MATCH_PARENT,
+//            FrameLayout.LayoutParams.MATCH_PARENT
+//        )
+//        overlayViewLayout.layoutParams = overlayParams
+//
+//        overlayViewLayout.setOnTouchListener { v, event ->
+//            when (event.action) {
+//                MotionEvent.ACTION_DOWN -> {
+//                    // Действие при начальном касании
+//                    Log.d("OnTouchListener", "FrameLayout touched!")
+//                }
+//                MotionEvent.ACTION_MOVE -> {
+//                    // Действие при движении пальца по экрану
+//                }
+//                MotionEvent.ACTION_UP -> {
+//                    // Действие при отпускании пальца
+//                }
+//                // Добавьте другие действия, если это необходимо
+//            }
+//            return@setOnTouchListener true  // Событие обработано
+//        }
 
 //        overlayView.addOnGestureListener(object = GestureOverlayView.OnGestureListener {
 //
@@ -281,6 +309,7 @@ class FloatingButtonService : Service() {
                             // Обновляем координаты  X и Y на основе движения пальцем.
                             params.x = initialX + (event.rawX - initialTouchX).toInt()
                             params.y = initialY + (event.rawY - initialTouchY).toInt()
+                            Log.d("PARAMS_X", "$params.x  $params.y")
                             // Обновляем позицию кнопки по новым координатам
                             windowManager.updateViewLayout(floatingButtonLayout, params)
                             lastAction = event.action
@@ -529,6 +558,7 @@ class FloatingButtonService : Service() {
         }
         // Всегда удаляем кнопку на экране, если сервис прекращает выполнение.
         windowManager.removeView(floatingButtonLayout)
+        unregisterReceiver(reciever)
     }
 
     //обработчик кнопки "Громкость"
@@ -668,6 +698,13 @@ class FloatingButtonService : Service() {
                     val posX: Int? = intent.extras?.getInt("PosX")
                     val posY: Int? = intent.extras?.getInt("PosY")
                     Log.d("TAG__","$posX $posY")
+                    if (posX != null) {
+                        params.x = initialX + (posX - initialTouchX).toInt()
+                    }
+                    if (posY != null) {
+                        params.y = initialY + (posY - initialTouchY).toInt()
+                    }
+                    windowManager.updateViewLayout(floatingButtonLayout, params)
                 }
             }
         }
