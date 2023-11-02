@@ -12,6 +12,7 @@ import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.gesture.GestureOverlayView
+import android.graphics.Point
 import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
@@ -75,6 +76,7 @@ class FloatingButtonService : Service() {
     override fun onCreate() {
         super.onCreate()
 
+
         pm = this.packageManager
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager // инициализация WindowManager для кастомных настроек отображения.
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager // инициализация AudioManager для управления аудио-настройками.
@@ -100,6 +102,8 @@ class FloatingButtonService : Service() {
             floatingButtonLayout.findViewById(R.id.brightness_button),
             floatingButtonLayout.findViewById(R.id.background_button),
         )
+
+
 
         for (packageName in packageNames) {
             try {
@@ -155,6 +159,9 @@ class FloatingButtonService : Service() {
             android.graphics.PixelFormat.TRANSLUCENT // задаёт параметр полупрозрачности
         )
 
+
+
+
         val displayMetrics = DisplayMetrics()
         windowManager.defaultDisplay.getMetrics(displayMetrics)
         initialX = displayMetrics.heightPixels / 2
@@ -163,6 +170,8 @@ class FloatingButtonService : Service() {
         initialTouchX = (displayMetrics.heightPixels / 2).toFloat()
         initialTouchY = (displayMetrics.widthPixels / 2).toFloat()
 
+        initialX = 0
+        initialY = 0
 
         if (floatingButtonLayout.parent == null) {
             floatingButtonLayout.post {
@@ -219,6 +228,14 @@ class FloatingButtonService : Service() {
                         // Блок, фиксирующий движение пальца.
                         MotionEvent.ACTION_MOVE -> {
                             // Обновляем координаты  X и Y на основе движения пальцем.
+                            Log.d("EVENT RAW X: ", (event.rawX).toString())
+                            Log.d("EVENT RAW Y: ", (event.rawY).toString())
+                            Log.d("EVENT INITIONAL X: ", (initialX).toString())
+                            Log.d("EVENT INITIONAL Y: ", (initialY).toString())
+                            Log.d("EVENT INITIONAL TOUCH X: ", (initialTouchX).toString())
+                            Log.d("EVENT INITIONAL TOUCH Y: ", (initialTouchX).toString())
+                            Log.d("EVENT INITIONAL TOUCH Y: ", "--------------------------")
+
                             params.x = initialX + (event.rawX - initialTouchX).toInt()
                             params.y = initialY + (event.rawY - initialTouchY).toInt()
                             Log.d("PARAMS_X", "$params.x  $params.y")
@@ -532,6 +549,13 @@ class FloatingButtonService : Service() {
     }
 
 
+    fun getScreenSize(context: Context): Point {
+        val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val display = wm.defaultDisplay
+        val size = Point()
+        display.getSize(size)
+        return size
+    }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val SERVICE_CHANNEL_ID = "fab_service_channel"
 
@@ -571,22 +595,35 @@ class FloatingButtonService : Service() {
 
             if (intent != null) {
                 if (intent.action == ACTION_FIVE_POINTS) {
+                    // Это будет EvenRawX EvenRawY
                     val posX: Int? = intent.extras?.getInt("PosX")
                     val posY: Int? = intent.extras?.getInt("PosY")
 
-                    if (posX != null) { initialX = posX }
-                    if (posY != null) { initialY = posY }
+//                    params.x = initialX + (event.rawX - initialTouchX).toInt()
+//                    if (posX != null) { initialX = posX }
+//                    if (posY != null) { initialY = posY }
+//
+//                    if (posX != null) { initialTouchX = posX.toFloat() }
+//                    if (posY != null) { initialTouchY = posY.toFloat() }
 
-                    if (posX != null) { initialTouchX = posX.toFloat() }
-                    if (posY != null) { initialTouchY = posY.toFloat() }
+                    val displayMetrics = DisplayMetrics()
+
+                    val screenSize = getScreenSize(context)
+                    val screenWidth = screenSize.x
+                    val screenHeight = screenSize.y
 
                     Log.d("TAG__","$posX $posY")
                     if (posX != null) {
-                        params.x = initialX + (posX - initialTouchX).toInt()
+                        params.x = (posX).toInt() - screenSize.x / 2
                     }
                     if (posY != null) {
-                        params.y = initialY + (posY - initialTouchY).toInt()
+                        params.y = (posY).toInt() - screenSize.y / 2
                     }
+
+                    Log.d("EVENT DISPLAT X", screenWidth.toString())
+                    Log.d("EVENT DISPLAT Y", screenHeight.toString())
+                    Log.d("EVENT posX: ", (posX).toString())
+                    Log.d("EVENT posY: ", (posY).toString())
                     windowManager.updateViewLayout(floatingButtonLayout, params)
                 }
             }
