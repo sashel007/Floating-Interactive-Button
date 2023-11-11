@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_width="200dp"
+    android:layout_height="200dp"
     android:id="@+id/floating_button"
     android:background="@drawable/red_border">
 
@@ -49,13 +49,13 @@
         android:src="@drawable/home_button_icon"/>
 
     <ImageButton
-        android:id="@+id/brightness_button"
-        android:layout_width="@dimen/button_dim"
-        android:layout_height="@dimen/button_dim"
+        android:id="@+id/back_button"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
         android:visibility="invisible"
         android:layout_marginTop="@dimen/additional_buttons_margins"
         android:layout_marginStart="@dimen/additional_buttons_margins"
-        android:src="@drawable/brightness_button_icon"/>
+        android:src="@drawable/back_button_icon"/>
 
     <ImageButton
         android:id="@+id/background_button"
@@ -67,12 +67,12 @@
         android:src="@drawable/background_button_icon"/>
 
     <ImageButton
-        android:id="@+id/any_button"
+        android:id="@+id/show_all_running_apps_button"
         android:layout_width="@dimen/button_dim"
         android:layout_height="@dimen/button_dim"
         android:visibility="invisible"
         android:layout_marginTop="@dimen/additional_buttons_margins"
         android:layout_marginStart="@dimen/additional_buttons_margins"
-        android:src="@drawable/any_button_icon"/>
+        android:src="@drawable/show_running_apps_icon"/>
 
 </FrameLayout>
