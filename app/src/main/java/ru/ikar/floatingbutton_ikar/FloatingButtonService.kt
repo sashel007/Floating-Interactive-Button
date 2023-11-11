@@ -436,11 +436,14 @@ class FloatingButtonService : Service() {
                     R.id.back_button -> {
 //                        backButtonHandler()
                         onFloatingButtonClick()
+//                        onShowRecentAppsButtonClick()
                     }
 
                     R.id.show_all_running_apps_button -> {
-                        showRunningAppsButtonHandler()
+//                        showRunningAppsButtonHandler()
+                        onShowRecentAppsButtonClick()
                     }
+
 
                     else -> {
                         Log.d(
@@ -471,6 +474,11 @@ class FloatingButtonService : Service() {
 
     fun onFloatingButtonClick() {
         val intent = Intent("com.myapp.ACTION_PERFORM_BACK")
+        sendBroadcast(intent)
+    }
+
+    fun onShowRecentAppsButtonClick() {
+        val intent = Intent("com.myapp.ACTION_SHOW_RECENT_APPS")
         sendBroadcast(intent)
     }
 

@@ -22,10 +22,15 @@ public class MyAccessibilityService extends AccessibilityService {
             public void onReceive(Context context, Intent intent) {
                 if ("com.myapp.ACTION_PERFORM_BACK".equals(intent.getAction())) {
                     performBackPress();
+                } else if ("com.myapp.ACTION_SHOW_RECENT_APPS".equals(intent.getAction())) {
+                    performShowRecentApps();
                 }
             }
         };
-        IntentFilter filter = new IntentFilter("com.myapp.ACTION_PERFORM_BACK");
+
+        IntentFilter filter = new IntentFilter();
+        filter.addAction("com.myapp.ACTION_PERFORM_BACK");
+        filter.addAction("com.myapp.ACTION_SHOW_RECENT_APPS");
         registerReceiver(myReceiver, filter);
     }
 
@@ -35,6 +40,9 @@ public class MyAccessibilityService extends AccessibilityService {
         unregisterReceiver(myReceiver); // Не забудьте отменить регистрацию приемника
     }
 
+    public void performShowRecentApps() {
+        performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS);
+    }
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         Log.d(TAG, "ЗАПУЩЕН: ");
