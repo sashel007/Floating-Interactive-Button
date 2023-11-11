@@ -434,7 +434,8 @@ class FloatingButtonService : Service() {
                     }
 
                     R.id.back_button -> {
-                        backButtonHandler()
+//                        backButtonHandler()
+                        onFloatingButtonClick()
                     }
 
                     R.id.show_all_running_apps_button -> {
@@ -461,8 +462,16 @@ class FloatingButtonService : Service() {
 
     private fun backButtonHandler() {
         floatingButtonLayout.setOnClickListener {
-            GlobalActionService.instance?.performBackAction()
+//            GlobalActionService.instance?.performBackAction()
+            Log.d("BUTTONBACK", "backButtonHandler: ")
+
         }
+    }
+
+
+    fun onFloatingButtonClick() {
+        val intent = Intent("com.myapp.ACTION_PERFORM_BACK")
+        sendBroadcast(intent)
     }
 
     private fun showRunningAppsButtonHandler() {

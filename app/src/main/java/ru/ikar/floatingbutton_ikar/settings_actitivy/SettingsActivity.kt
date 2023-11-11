@@ -1,7 +1,9 @@
 package ru.ikar.floatingbutton_ikar.settings_actitivy
 
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
@@ -16,6 +18,7 @@ import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
@@ -28,6 +31,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +59,7 @@ class SettingsActivity : ComponentActivity() {
         )
 
         setContent {
+//            MyScreen()
             // Отображаем экран настроек
             SettingsScreen(getAllApps = { context -> getAllApps(context) },
                 sharedPreferences = sharedPreferences,
@@ -71,6 +77,8 @@ class SettingsActivity : ComponentActivity() {
             // Запускаем активность для результата (для получения ответа о предоставлении разрешения).
             startActivityForResult(intent, OVERLAY_PERMISSION_REQ_CODE)
         }
+
+
     }
 
     // Этот метод будет вызван после того, как пользователь предоставит или отклонит разрешение
@@ -127,6 +135,39 @@ class SettingsActivity : ComponentActivity() {
         // Конвертируем Bitmap в ImageBitmap.
         return bitmap.asImageBitmap()
     }
+
+
+
+
+//    @Composable
+//    fun MyScreen() {
+//        BackButtonHandler()
+//
+//        // Остальной код вашего Composable UI
+//        // Например, отображение настроек или других элементов интерфейса
+//    }
+//
+//    @Composable
+//    fun BackButtonHandler() {
+//        val context = LocalContext.current
+//        val dispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
+//
+//        DisposableEffect(Unit) {
+//            val backPressedReceiver = object : BroadcastReceiver() {
+//                override fun onReceive(context: Context, intent: Intent) {
+//                    dispatcher?.onBackPressed()
+//                }
+//            }
+//
+//            val filter = IntentFilter("com.myapp.ACTION_BACK_PRESSED")
+//            context.registerReceiver(backPressedReceiver, filter)
+//            Log.d("12312412ewff", "BackButtonHandler: ")
+//
+//            onDispose {
+//                context.unregisterReceiver(backPressedReceiver)
+//            }
+//        }
+//    }
 
     private fun getAppIconsFromKeys(context: Context, keys: List<String>): List<ImageBitmap> {
         val pm = context.packageManager
