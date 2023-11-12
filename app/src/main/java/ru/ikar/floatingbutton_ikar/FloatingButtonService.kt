@@ -64,6 +64,7 @@ class FloatingButtonService : Service() {
 
     companion object {
         private const val REQUEST_CODE = 101 // or any other integer
+        private const val FADE_DURATION = 250L
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -224,7 +225,7 @@ class FloatingButtonService : Service() {
     private fun setupAndDisplayOverlayButtons() {
         if (floatingButtonLayout.parent == null) {
             floatingButtonLayout.post {
-                positionSurroundingButtons(mainButton, buttons, radius)
+                positionSurroundingButtons(mainButton, buttons)
             }
             Log.d("PARAMS_", "$params")
             windowManager.addView(floatingButtonLayout, params)
@@ -257,6 +258,9 @@ class FloatingButtonService : Service() {
                 // Добавление кнопки в layout и список
                 (floatingButtonLayout as FrameLayout).addView(newButton)
                 buttons.add(newButton)
+                for (button in buttons) {
+                    button.visibility = View.INVISIBLE
+                }
             } catch (e: PackageManager.NameNotFoundException) {
                 e.printStackTrace()
             }
@@ -264,19 +268,20 @@ class FloatingButtonService : Service() {
     }
 
     private fun setupOverlayWindow() {
-        params = WindowManager.LayoutParams(
+        params = createLayoutParams()
+    }
+
+    private fun createLayoutParams(): WindowManager.LayoutParams {
+        return WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
-            // Если версия андроида Oreo или выше, используется TYPE_APPLICATION_OVERLAY, иначе TYPE_PHONE
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             } else {
-                //старый легаси параметр для перекрытия вьюшки над остальными элементами телефона
                 WindowManager.LayoutParams.TYPE_PHONE
             },
-            // вьюшка не потребялет фокус и не мешает тыкать по остальным элементам экрана
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            android.graphics.PixelFormat.TRANSLUCENT // задаёт параметр полупрозрачности
+            android.graphics.PixelFormat.TRANSLUCENT
         )
     }
 
@@ -284,7 +289,7 @@ class FloatingButtonService : Service() {
     private fun changeOpacity(toOpacity: Float) {
         // Используем ObjectAnimator, чтобы санимировать плавную прозрачность
         ObjectAnimator.ofFloat(floatingButtonLayout, "alpha", toOpacity).apply {
-            duration = 250  // длительность перехода
+            duration = FADE_DURATION  // длительность перехода
             start() // Начать анимацию.
         }
     }
@@ -299,8 +304,7 @@ class FloatingButtonService : Service() {
 
     private fun positionSurroundingButtons(
         mainButton: View,
-        selectedButtons: List<View>,
-        radius: Float
+        selectedButtons: List<View>
     ) {
         // Рассчитываем центральные координаты главной кнпоки по осям Х/Y.
         val mainButtonCenterX = mainButton.x + mainButton.width / 2
@@ -512,17 +516,7 @@ class FloatingButtonService : Service() {
     private fun volumeButtonHandler() {
         if (volumeSliderLayout.parent == null) { // Условие, если ползунок еще не отображен
             // Определяем параметры макета для ползунка громкости
-            val volumeParams = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                } else {
-                    WindowManager.LayoutParams.TYPE_PHONE
-                },
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                android.graphics.PixelFormat.TRANSLUCENT
-            )
+            val volumeParams = createLayoutParams()
             // Получаем текущую позицию основной кнопки
             val mainButtonX = params.x + mainButton.width
             val mainButtonY = params.y

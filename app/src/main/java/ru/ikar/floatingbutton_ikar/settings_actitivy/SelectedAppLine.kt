@@ -49,9 +49,10 @@ fun SelectedAppLine(
     appIcons: List<ImageBitmap>,
     apps: (context: Context) -> List<AppInfo>,
     sharedPreferences: SharedPreferences,
-    updateAppIcons: () -> Unit
+    updateAppIcons: () -> Unit,
+    stopService: () -> Unit,
+    startService: () -> Unit
 ) {
-    val heightSize = 60.dp
     val spacerSize = 15.dp
     val boxSize = 50.dp
     val boxBackground = Color.LightGray
@@ -96,7 +97,6 @@ fun SelectedAppLine(
                         drawable.draw(canvas)
                         bitmap.asImageBitmap()
                     }
-
                     else -> null
                 }
             }
@@ -134,6 +134,8 @@ fun SelectedAppLine(
             Button(onClick = {
                 activeDialog = index
                 showDialogWithButtonsIndex = null
+//                stopService()
+//                startService()
             }) {
                 Text("Добавить")
             }
@@ -144,10 +146,8 @@ fun SelectedAppLine(
                     val editor = sharedPreferences.edit()
                     editor.remove("package_name_key_$showDialogWithButtonsIndex")
                     editor.apply()
-
                     // Обновление иконок приложения (если требуется)
                     updateAppIcons()
-
                     // Закрытие диалога
                     showDialogWithButtonsIndex = null
                 }) {
@@ -159,12 +159,12 @@ fun SelectedAppLine(
     }
 
     activeDialog?.let { index ->
-        showDialog(index, { activeDialog = null }, apps, sharedPreferences, updateAppIcons)
+        ShowDialog(index, { activeDialog = null }, apps, sharedPreferences, updateAppIcons)
     }
 }
 
 @Composable
-fun showDialog(
+fun ShowDialog(
     dialogId: Int,
     onClose: () -> Unit,
     apps: (context: Context) -> List<AppInfo>,

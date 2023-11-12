@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
-import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -61,9 +60,13 @@ class SettingsActivity : ComponentActivity() {
         setContent {
 //            MyScreen()
             // Отображаем экран настроек
-            SettingsScreen(getAllApps = { context -> getAllApps(context) },
+            SettingsScreen(
+                getAllApps = { context -> getAllApps(context) },
                 sharedPreferences = sharedPreferences,
-                getAppIconsFromKeys = { context -> getAppIconsFromKeys(context, keys) })
+                getAppIconsFromKeys = { context -> getAppIconsFromKeys(context, keys) },
+                stopService = { stopService() },
+                startService = { startFloatingButtonService() }
+            )
         }
         logSharedPreferencesContents(sharedPreferences)
 
@@ -101,6 +104,10 @@ class SettingsActivity : ComponentActivity() {
     private fun startFloatingButtonService() {
         val intent = Intent(this, FloatingButtonService::class.java)
         startService(intent)
+    }
+
+    private fun stopService() {
+        stopService(Intent(this, FloatingButtonService::class.java))
     }
 
     private fun getAllApps(context: Context): List<AppInfo> {
@@ -201,7 +208,9 @@ class SettingsActivity : ComponentActivity() {
 fun SettingsScreen(
     getAllApps: (context: Context) -> List<AppInfo>,
     sharedPreferences: SharedPreferences,
-    getAppIconsFromKeys: (context: Context) -> List<ImageBitmap>
+    getAppIconsFromKeys: (context: Context) -> List<ImageBitmap>,
+    stopService: () -> Unit,
+    startService: () -> Unit
 ) {
     val context = LocalContext.current
     var isFloatingButtonOn by remember { mutableStateOf(false) }
@@ -228,7 +237,9 @@ fun SettingsScreen(
                 appIcons = appIcons,
                 apps = getAllApps,
                 sharedPreferences = sharedPreferences,
-                updateAppIcons = updateAppIcons
+                updateAppIcons = updateAppIcons,
+                stopService = stopService,
+                startService = startService
             )
 
             Spacer(modifier = Modifier.height(spacingSize))

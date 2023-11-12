@@ -10,7 +10,7 @@ import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 
 
-public class MyAccessibilityService extends AccessibilityService {
+class MyAccessibilityService extends AccessibilityService {
     private static final String TAG = "MyAccessibilityService";
     private BroadcastReceiver myReceiver;
 
