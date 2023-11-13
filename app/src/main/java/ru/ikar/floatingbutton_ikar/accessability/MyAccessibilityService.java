@@ -1,4 +1,4 @@
-package ru.ikar.floatingbutton_ikar;
+package ru.ikar.floatingbutton_ikar.accessability;
 
 import android.accessibilityservice.AccessibilityService;
 import android.app.Service;
@@ -10,7 +10,7 @@ import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 
 
-class MyAccessibilityService extends AccessibilityService {
+public class MyAccessibilityService extends AccessibilityService {
     private static final String TAG = "MyAccessibilityService";
     private BroadcastReceiver myReceiver;
 

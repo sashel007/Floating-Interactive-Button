@@ -1,4 +1,4 @@
-package ru.ikar.floatingbutton_ikar
+package ru.ikar.floatingbutton_ikar.accessability
 
 import android.accessibilityservice.AccessibilityService
 import android.view.accessibility.AccessibilityEvent

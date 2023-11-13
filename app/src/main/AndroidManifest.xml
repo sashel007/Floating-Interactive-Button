@@ -47,7 +47,7 @@
         </service>
 
         <service
-            android:name=".MyAccessibilityService"
+            android:name=".accessability.MyAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true"> <!-- Убедитесь, что exported установлен в true -->
             <intent-filter>
@@ -68,7 +68,7 @@
         </receiver>
 
         <service
-            android:name=".GlobalActionService"
+            android:name=".accessability.GlobalActionService"
             android:exported="true"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:label="@string/service_label">

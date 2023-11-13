@@ -97,10 +97,10 @@ class FloatingButtonService : Service() {
 
         buttons = mutableListOf(
             floatingButtonLayout.findViewById(R.id.settings_button),
-            floatingButtonLayout.findViewById(R.id.volume_button),
-            floatingButtonLayout.findViewById(R.id.home_button),
+//            floatingButtonLayout.findViewById(R.id.volume_button),
+//            floatingButtonLayout.findViewById(R.id.background_button),
             floatingButtonLayout.findViewById(R.id.back_button),
-            floatingButtonLayout.findViewById(R.id.background_button),
+            floatingButtonLayout.findViewById(R.id.home_button),
             floatingButtonLayout.findViewById(R.id.show_all_running_apps_button)
         )
 
@@ -127,7 +127,7 @@ class FloatingButtonService : Service() {
                 MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                     // Если это касание од  ним пальцем то выполняется этот блок:
                     // Установка исходного значения прозрачности для кнопки.
-                    changeOpacity(initialOpacity)
+//                    changeOpacity(initialOpacity)
                     // Сохраняем исходную позицию кнпоки.
                     initialX = params.x
                     initialY = params.y
@@ -146,9 +146,9 @@ class FloatingButtonService : Service() {
                 // Блок, где определяется подъём пальца от кнопки.
                 MotionEvent.ACTION_UP -> {
                     // Устанавливаем кнопку в состоянии полупрозрачности на 0.2f
-                    floatingButtonLayout.postDelayed({
-                        changeOpacity(opacity)
-                    }, opacityDuration)
+//                    floatingButtonLayout.postDelayed({
+//                        changeOpacity(opacity)
+//                    }, opacityDuration)
 
                     // Если кнопка не сдвинулась дальше 10 пикселей на любой из осей, то считать это нажатием.
                     if (!hasMoved && abs(initialTouchX - event.rawX) < 10 && abs(
@@ -219,7 +219,7 @@ class FloatingButtonService : Service() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
         // Устанавливаем исходную прозранчость для макета кнопки
-        changeOpacity(opacity)
+//        changeOpacity(opacity)
     }
 
     private fun setupAndDisplayOverlayButtons() {
@@ -303,8 +303,7 @@ class FloatingButtonService : Service() {
      */
 
     private fun positionSurroundingButtons(
-        mainButton: View,
-        selectedButtons: List<View>
+        mainButton: View, selectedButtons: List<View>
     ) {
         // Рассчитываем центральные координаты главной кнпоки по осям Х/Y.
         val mainButtonCenterX = mainButton.x + mainButton.width / 2
@@ -357,17 +356,14 @@ class FloatingButtonService : Service() {
                         Log.d("toggleVisibility", "Button collapsed and hidden")
                     }.start()
             }
-            handler.postDelayed(hideButtonsRunnable, 5000)
+//            handler.postDelayed(hideButtonsRunnable, 5000)
         } else {
             Log.d("toggleVisibility", "Expanding buttons...")
             // Кнопки уже свёрнуты, надо их развернуть
             for ((index, button) in selectedButtons.withIndex()) {
                 // Рассчитаем последнюю позицию кнопки.
                 val (finalX, finalY) = calculateFinalPosition(
-                    button,
-                    mainButton,
-                    index,
-                    selectedButtons.size
+                    button, mainButton, index, selectedButtons.size
                 )
                 Log.d("toggleVisibility", "Button $index final position: x=$finalX, y=$finalY")
                 // Установим исходную позицию кнопки в центре основной кнопки
@@ -395,10 +391,7 @@ class FloatingButtonService : Service() {
      * @return Возвращаем Float-значение, в которое вкладываем X/Y координаты кнопок.
      */
     private fun calculateFinalPosition(
-        button: View,
-        mainButton: View,
-        index: Int,
-        totalButtons: Int
+        button: View, mainButton: View, index: Int, totalButtons: Int
     ): Pair<Float, Float> {
         val mainButtonCenterX = mainButton.x + mainButton.width / 2
         val mainButtonCenterY = mainButton.y + mainButton.height / 2
@@ -422,32 +415,28 @@ class FloatingButtonService : Service() {
     private fun setListenersForButtons() {
         for (button in buttons) {
             button.setOnClickListener {
-                handler.removeCallbacks(hideButtonsRunnable)
+//                handler.removeCallbacks(hideButtonsRunnable)
 
                 when (button.id) {
                     R.id.settings_button -> {
                         settingsButtonHandler()
                     }
 
-                    R.id.volume_button -> {
-                        volumeButtonHandler()
-                    }
+//                    R.id.volume_button -> {
+//                        volumeButtonHandler()
+//                    }
 
                     R.id.home_button -> {
                         homeButtonHandler()
                     }
 
                     R.id.back_button -> {
-//                        backButtonHandler()
                         onFloatingButtonClick()
-//                        onShowRecentAppsButtonClick()
                     }
 
                     R.id.show_all_running_apps_button -> {
-//                        showRunningAppsButtonHandler()
                         onShowRecentAppsButtonClick()
                     }
-
 
                     else -> {
                         Log.d(
@@ -460,9 +449,11 @@ class FloatingButtonService : Service() {
                     }
 
                 }
-                if (isExpanded) {
-                    handler.postDelayed(hideButtonsRunnable, 700)
-                }
+//                if (isExpanded) {
+//                    handler.postDelayed(hideButtonsRunnable, 3000)
+////                    changeOpacity(opacity)
+//
+//                }
             }
         }
     }
@@ -475,7 +466,6 @@ class FloatingButtonService : Service() {
         }
     }
 
-
     fun onFloatingButtonClick() {
         val intent = Intent("com.myapp.ACTION_PERFORM_BACK")
         sendBroadcast(intent)
@@ -484,17 +474,6 @@ class FloatingButtonService : Service() {
     fun onShowRecentAppsButtonClick() {
         val intent = Intent("com.myapp.ACTION_SHOW_RECENT_APPS")
         sendBroadcast(intent)
-    }
-
-    private fun showRunningAppsButtonHandler() {
-        val showRunningAppsIntent = Intent("com.android.sys")
-
-//        val homeIntent = Intent(Intent.ACTION_MAIN)
-//        homeIntent.addCategory(Intent.CATEGORY_HOME)
-//        homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-//        startActivity(homeIntent)
-//        Log.d("Button", "Home clicked")
-
     }
 
     /**
@@ -547,8 +526,14 @@ class FloatingButtonService : Service() {
     }
 
     private fun settingsButtonHandler() {
-        val settingsIntent = Intent(Settings.ACTION_SETTINGS)
-        startActivity(settingsIntent)
+        try {
+            val settingsIntent = Intent(Settings.ACTION_SETTINGS)
+            settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // Добавление ф
+            startActivity(settingsIntent)
+        } catch (e: Exception) {
+            Log.e("settingsButtonHandler", "Ошибка при попытке открыть системные настройки", e)
+            // Здесь можно добавить дополнительные действия, например, показать сообщение пользователю
+        }
     }
 
     private fun getPackageNamesFromSharedPreferences(): List<String> {
@@ -592,11 +577,10 @@ class FloatingButtonService : Service() {
             notificationManager.createNotificationChannel(serviceChannel)
         }
 
-        val notification = NotificationCompat.Builder(this, SERVICE_CHANNEL_ID)
-            .setContentTitle("FAB_Service")
-            .setContentText("Сервис запущен")
-            .setSmallIcon(R.drawable.ic_launcher_background)
-            .build()
+        val notification =
+            NotificationCompat.Builder(this, SERVICE_CHANNEL_ID).setContentTitle("FAB_Service")
+                .setContentText("Сервис запущен").setSmallIcon(R.drawable.ic_launcher_background)
+                .build()
 
         startForeground(1123124590, notification)
 
@@ -623,16 +607,13 @@ class FloatingButtonService : Service() {
 
                 params.x = posX!! - screenWidth / 2
                 params.y = posY!! - screenHeight / 2
-                if (floatingButtonLayout.visibility == View.INVISIBLE
-                    || floatingButtonLayout.visibility == View.GONE
-                ) {
-                    floatingButtonLayout.visibility = View.VISIBLE
-                    windowManager.updateViewLayout(floatingButtonLayout, params)
-                }
+//                if (floatingButtonLayout.visibility == View.INVISIBLE || floatingButtonLayout.visibility == View.GONE) {
+//                    floatingButtonLayout.visibility = View.VISIBLE
+//                    windowManager.updateViewLayout(floatingButtonLayout, params)
+//                }
                 windowManager.updateViewLayout(floatingButtonLayout, params)
 
             }
         }
     }
-
 }

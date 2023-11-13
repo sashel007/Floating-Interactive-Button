@@ -1,6 +1,6 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="10dp"
-    android:height="10dp"
+    android:width="@dimen/button_dim"
+    android:height="@dimen/button_dim"
     android:viewportWidth="40"
     android:viewportHeight="40">
   <group>
@@ -8,11 +8,11 @@
         android:pathData="M0,0h40v40h-40z"/>
     <path
         android:pathData="M20,5L3.333,20H8.333V33.333H18.333V23.333H21.667V33.333H31.667V20H36.667L20,5ZM28.333,30H25V20H15V30H11.667V16.983L20,9.483L28.333,16.983V30Z"
-        android:fillColor="#1E3E0A"/>
+        android:fillColor="@color/black"/>
     <path
         android:pathData="M11.667,16.983V30H15V20H25V30H28.333V16.983L20,9.483L11.667,16.983Z"
         android:strokeAlpha="0.3"
-        android:fillColor="#1E3E0A"
+        android:fillColor="@color/black"
         android:fillAlpha="0.3"/>
   </group>
 </vector>

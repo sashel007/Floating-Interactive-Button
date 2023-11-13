@@ -1,19 +1,19 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="10dp"
-    android:height="10dp"
+    android:width="@dimen/button_dim"
+    android:height="@dimen/button_dim"
     android:viewportWidth="40"
     android:viewportHeight="40">
   <path
       android:pathData="M8.333,8.333H31.667V31.667H8.333V8.333ZM15,21.9L10,28.333H30L23.567,19.75L18.567,26.2L15,21.9Z"
       android:strokeAlpha="0.5"
-      android:fillColor="#1E3E0A"
+      android:fillColor="@color/black"
       android:fillType="evenOdd"
       android:fillAlpha="0.5"/>
   <path
       android:pathData="M31.667,35H8.333C6.5,35 5,33.5 5,31.667V8.333C5,6.5 6.5,5 8.333,5H31.667C33.5,5 35,6.5 35,8.333V31.667C35,33.5 33.5,35 31.667,35ZM31.667,8.333H8.333V31.667H31.667V8.333Z"
-      android:fillColor="#1E3E0A"
+      android:fillColor="@color/black"
       android:fillType="evenOdd"/>
   <path
       android:pathData="M18.567,26.2L15,21.9L10,28.333H30L23.567,19.767L18.567,26.2Z"
-      android:fillColor="#1E3E0A"/>
+      android:fillColor="@color/black"/>
 </vector>

@@ -18,7 +18,6 @@ class BootReceiver : BroadcastReceiver() {
         /*
          Ждем интент, оповещающий о запуске устройства (после перезагрузки) - Intent.ACTION_BOOT_COMPLETED,
          отсеивая остальные
-
          */
         if (intent?.action == Intent.ACTION_BOOT_COMPLETED) {
 
