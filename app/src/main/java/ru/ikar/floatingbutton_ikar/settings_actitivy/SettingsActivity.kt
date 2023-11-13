@@ -19,6 +19,8 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.activity.compose.setContent
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,6 +52,11 @@ class SettingsActivity : ComponentActivity() {
     private val OVERLAY_PERMISSION_REQ_CODE = 1001  // ваш код запроса для этого разрешения
     private lateinit var sharedPreferences: SharedPreferences
 
+    private val accessibilityServiceIntent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+    private lateinit var accessibilityPermissionLauncher: ActivityResultLauncher<Intent>
+
+
+
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,6 +64,28 @@ class SettingsActivity : ComponentActivity() {
         val keys = listOf(
             "package_name_key_1", "package_name_key_2", "package_name_key_3", "package_name_key_4"
         )
+
+        // Инициализация лаунчера для запроса разрешения на использование службы доступности
+        accessibilityPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            if (result.resultCode == RESULT_OK) {
+                // Пользователь предоставил разрешение
+                Toast.makeText(this, "Разрешение на доступность предоставлено", Toast.LENGTH_SHORT).show()
+            } else {
+                // Пользователь не предоставил разрешение
+                Toast.makeText(this, "Разрешение на доступность не предоставлено", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // Проверка, предоставлено ли разрешение на использование службы доступности
+        if (!isAccessibilityServiceEnabled()) {
+            // Если разрешение не предоставлено, предложите пользователю предоставить его
+            requestAccessibilityPermission()
+        }
+
+
+
 
         setContent {
 //            MyScreen()
@@ -102,6 +131,18 @@ class SettingsActivity : ComponentActivity() {
         }
     }
 
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        val accessibilityServices =
+            Settings.Secure.getString(
+                contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            )
+        return accessibilityServices?.contains(packageName) == true
+    }
+
+    private fun requestAccessibilityPermission() {
+        accessibilityPermissionLauncher.launch(accessibilityServiceIntent)
+    }
     private fun startFloatingButtonService() {
         val intent = Intent(this, FloatingButtonService::class.java)
         startService(intent)
