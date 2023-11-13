@@ -64,6 +64,7 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="com.xbh.fivePoint"/>
+                <action android:name="com.xbh.action.RECENT_TASK"/>
             </intent-filter>
         </receiver>
 

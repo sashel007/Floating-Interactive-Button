@@ -58,6 +58,7 @@ class FloatingButtonService : Service() {
     private lateinit var testView: View
     private lateinit var overlayViewLayout: View
     private val ACTION_FIVE_POINTS: String = "com.xbh.fivePoint"
+    private val ACTION_RECENT_TASK: String = "com.xbh.action.RECENT_TASK"
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var hideButtonsRunnable: Runnable
     private var isMoving = false
@@ -83,7 +84,10 @@ class FloatingButtonService : Service() {
 
         val filter = IntentFilter()
         filter.addAction(ACTION_FIVE_POINTS)
+        filter.addAction(ACTION_RECENT_TASK)
         registerReceiver(reciever, filter)
+
+
 
         // инфлейтим макет кнопки (floating button).
         floatingButtonLayout =
@@ -472,7 +476,7 @@ class FloatingButtonService : Service() {
     }
 
     fun onShowRecentAppsButtonClick() {
-        val intent = Intent("com.myapp.ACTION_SHOW_RECENT_APPS")
+        val intent = Intent("com.xbh.action.RECENT_TASK")
         sendBroadcast(intent)
     }
 
@@ -589,6 +593,7 @@ class FloatingButtonService : Service() {
 
     private val reciever: BroadcastReceiver = object : BroadcastReceiver() {
         private val ACTION_FIVE_POINTS = "com.xbh.fivePoint"
+        private val ACTION_RECENT_TASK = "com.xbh.action.RECENT_TASK"
 
         override fun onReceive(context: Context, intent: Intent) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -596,8 +601,9 @@ class FloatingButtonService : Service() {
             } else {
                 context.startService(Intent(context, FloatingButtonService::class.java))
             }
-
+            Log.d("PPOIUYTRE", "onReceive: ." + intent.action)
             if (intent.action == ACTION_FIVE_POINTS) {
+                Log.d("UFEGIUHEIUFHIWEF", "onReceive: .")
                 val posX: Int? = intent.extras?.getInt("PosX")
                 val posY: Int? = intent.extras?.getInt("PosY")
 
@@ -612,7 +618,6 @@ class FloatingButtonService : Service() {
 //                    windowManager.updateViewLayout(floatingButtonLayout, params)
 //                }
                 windowManager.updateViewLayout(floatingButtonLayout, params)
-
             }
         }
     }
