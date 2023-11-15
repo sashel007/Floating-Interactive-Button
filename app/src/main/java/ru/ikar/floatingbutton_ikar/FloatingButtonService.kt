@@ -14,9 +14,7 @@ import android.content.pm.PackageManager
 import android.graphics.Point
 import android.media.AudioManager
 import android.os.Build
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import android.util.TypedValue
@@ -24,6 +22,7 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.AnimationUtils
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
@@ -41,7 +40,7 @@ class FloatingButtonService : Service() {
     private val opacity = 0.2f
     private val opacityDuration = 2500L
     private val layoutDimens = 300
-    private val radiusFirst = 100f
+    private val radiusFirst = 120f
     private var isExpanded = false // состояние кнопок (кнопки развернуты/свёрнуты)
     private var hasMoved = false
     private lateinit var pm: PackageManager
@@ -60,7 +59,8 @@ class FloatingButtonService : Service() {
     private lateinit var overlayViewLayout: View
     private val ACTION_FIVE_POINTS: String = "com.xbh.fivePoint"
     private val ACTION_RECENT_TASK: String = "com.xbh.action.RECENT_TASK"
-    private val handler = Handler(Looper.getMainLooper())
+
+    //    private val handler = Handler(Looper.getMainLooper())
     private lateinit var hideButtonsRunnable: Runnable
     private var isMoving = false
 
@@ -352,13 +352,15 @@ class FloatingButtonService : Service() {
             // Кнопки развёрнуты. Надо свернуть
             for (button in selectedButtons) {
                 // Возьмём центр основной кнопки за целевые координаты
-                button.visibility = View.INVISIBLE
-                button.animate().x(mainButton.x + mainButton.width / 2 - button.width / 2)
+//                button.visibility = View.INVISIBLE
+                button.animate()
+                    .x(mainButton.x + mainButton.width / 2 - button.width / 2)
                     .y(mainButton.y + mainButton.height / 2 - button.height / 2)
-                    .setDuration(300) // Длительность анимации в миллисек.
+                    .scaleX(0f).scaleY(0f)  // Добавление уменьшения
+                    .alpha(0f)              // Добавление анимации прозрачности
+                    .setDuration(300)
                     .withEndAction {
-                        button.visibility =
-                            View.INVISIBLE // После проигрывания анимации, спрятать кнопки.
+                        button.visibility = View.INVISIBLE
                         Log.d("toggleVisibility", "Button collapsed and hidden")
                     }.start()
             }
@@ -367,24 +369,29 @@ class FloatingButtonService : Service() {
             Log.d("toggleVisibility", "Expanding buttons...")
             // Кнопки уже свёрнуты, надо их развернуть
             for ((index, button) in selectedButtons.withIndex()) {
-                // Рассчитаем последнюю позицию кнопки.
-                val (finalX, finalY) = calculateFinalPosition(
-                    button, mainButton, index, selectedButtons.size
-                )
+                // Рассчитаем последнюю позицию кнопки
+                val (finalX, finalY) = calculateFinalPosition(button, mainButton, index, selectedButtons.size)
                 Log.d("toggleVisibility", "Button $index final position: x=$finalX, y=$finalY")
-                // Установим исходную позицию кнопки в центре основной кнопки
+
+                // Устанавливаем начальную позицию и делаем кнопку видимой
                 button.x = mainButton.x + mainButton.width / 2 - button.width / 2
                 button.y = mainButton.y + mainButton.height / 2 - button.height / 2
-                button.visibility = View.VISIBLE // Сделаем кнопку видимой.
-                Log.d("toggleVisibility", "Button $index set to initial position and made visible")
+                button.visibility = View.VISIBLE
+
+                // Восстанавливаем прозрачность и масштаб до исходных значений
+                button.alpha = 1f
+                button.scaleX = 1f
+                button.scaleY = 1f
+
+                // Анимация перемещения кнопки в финальную позицию
                 button.animate().x(finalX)
-                    .y(finalY) // Санимируем кнопку для перехода в финальную позицию
-                    .setDuration(300) // Длительность анимации в миллисек.
+                    .y(finalY)
+                    .setDuration(300)
                     .start()
             }
         }
-        isExpanded =
-            !isExpanded // Меняем состояние развёрнутости (если развёрнуто, свернём - и обратно)
+        // Меняем состояние развёрнутости (если развёрнуто, свернём - и обратно)
+        isExpanded = !isExpanded
     }
 
     /**
@@ -426,6 +433,7 @@ class FloatingButtonService : Service() {
                 when (button.id) {
                     R.id.settings_button -> {
                         settingsButtonHandler()
+                        animateButton(button)
                     }
 
 //                    R.id.volume_button -> {
@@ -434,18 +442,22 @@ class FloatingButtonService : Service() {
 
                     R.id.home_button -> {
                         homeButtonHandler()
+                        animateButton(button)
                     }
 
                     R.id.back_button -> {
                         onFloatingButtonClick()
+                        animateButton(button)
                     }
 
                     R.id.show_all_running_apps_button -> {
                         onShowRecentAppsButtonClick()
+                        animateButton(button)
                     }
 
                     R.id.additional_settings_button -> {
                         additionalSettingsButtonHandler()
+                        animateButton(button)
                     }
 
                     else -> {
@@ -456,6 +468,7 @@ class FloatingButtonService : Service() {
                         val launchIntent =
                             packageManager.getLaunchIntentForPackage(button.tag as? String ?: "")
                         launchIntent?.let { startActivity(it) }
+                        animateButton(it)
                     }
 
                 }
@@ -466,6 +479,15 @@ class FloatingButtonService : Service() {
 //                }
             }
         }
+    }
+
+    private fun animateButton(button: View) {
+        button.startAnimation(
+            AnimationUtils.loadAnimation(
+                this,
+                R.anim.button_animation
+            )
+        )
     }
 
     private fun additionalSettingsButtonHandler() {
