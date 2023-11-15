@@ -49,7 +49,7 @@
         <service
             android:name=".accessability.MyAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-            android:exported="true"> <!-- Убедитесь, что exported установлен в true -->
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>
@@ -63,7 +63,8 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="com.xbh.fivePoint"/>
+                <action android:name="com.xbh.fivePoint" />
+                <action android:name="com.xbh.action.RECENT_TASK" />
                 <action android:name="com.xbh.action.RECENT_TASK"/>
             </intent-filter>
         </receiver>

@@ -27,7 +27,6 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
-import android.widget.SeekBar
 import androidx.core.app.NotificationCompat
 import kotlin.math.abs
 
@@ -41,15 +40,17 @@ class FloatingButtonService : Service() {
     private val initialOpacity = 1.0f
     private val opacity = 0.2f
     private val opacityDuration = 2500L
-    private val radius = 80f
+    private val layoutDimens = 300
+    private val radiusFirst = 100f
     private var isExpanded = false // состояние кнопок (кнопки развернуты/свёрнуты)
     private var hasMoved = false
     private lateinit var pm: PackageManager
     private lateinit var buttons: MutableList<View>
     private lateinit var windowManager: WindowManager
     private lateinit var mainButton: View
-    private lateinit var volumeSliderLayout: View
-    private lateinit var volumeSlider: SeekBar
+
+    //    private lateinit var volumeSliderLayout: View
+//    private lateinit var volumeSlider: SeekBar
     private lateinit var params: WindowManager.LayoutParams
     private lateinit var audioManager: AudioManager
     private lateinit var floatingButtonLayout: View
@@ -82,27 +83,22 @@ class FloatingButtonService : Service() {
         sharedPreferences = getSharedPreferences("app_package_names", Context.MODE_PRIVATE)
         packageNames = getPackageNamesFromSharedPreferences()
 
-        val filter = IntentFilter()
-        filter.addAction(ACTION_FIVE_POINTS)
-        filter.addAction(ACTION_RECENT_TASK)
-        registerReceiver(reciever, filter)
-
-
+        registerReciverToService()
 
         // инфлейтим макет кнопки (floating button).
         floatingButtonLayout =
-            LayoutInflater.from(this).inflate(R.layout.floating_button_layout, null) as FrameLayout
-        testView = floatingButtonLayout.findViewById(R.id.floating_button)
+            LayoutInflater.from(this).inflate(R.layout.floating_button_layout, null)
+//        testView = floatingButtonLayout.findViewById(R.id.floating_button)
         // прозрачный оверлей
-        overlayViewLayout =
-            LayoutInflater.from(this).inflate(R.layout.fullscreen_overlay, null) as FrameLayout
+//        overlayViewLayout =
+//            LayoutInflater.from(this).inflate(R.layout.fullscreen_overlay, null) as FrameLayout
         // Получаем ссылку на главную кнопку внутри макета floating button
         mainButton = floatingButtonLayout.findViewById(R.id.ellipse_outer)
 
         buttons = mutableListOf(
             floatingButtonLayout.findViewById(R.id.settings_button),
 //            floatingButtonLayout.findViewById(R.id.volume_button),
-//            floatingButtonLayout.findViewById(R.id.background_button),
+            floatingButtonLayout.findViewById(R.id.additional_settings_button),
             floatingButtonLayout.findViewById(R.id.back_button),
             floatingButtonLayout.findViewById(R.id.home_button),
             floatingButtonLayout.findViewById(R.id.show_all_running_apps_button)
@@ -114,16 +110,16 @@ class FloatingButtonService : Service() {
 
         Log.d("DEBUG", "selectedButtons: $buttons")
         // инфлейтим ползунок громкости, который отображается по нажатию кнопки громкости
-        volumeSliderLayout = LayoutInflater.from(this).inflate(R.layout.volume_slider_layout, null)
+//        volumeSliderLayout = LayoutInflater.from(this).inflate(R.layout.volume_slider_layout, null)
         // даём ссылку на слайдер внутри макета volume slider.
-        volumeSlider = volumeSliderLayout.findViewById(R.id.volume_slider)
+//        volumeSlider = volumeSliderLayout.findViewById(R.id.volume_slider)
         // Определеяем параметры макета для отображения вьюшки с кнопкой.
         // Эти настройки определяют то, как вьюшка отображается на экране.
 
         // set up params
         setupOverlayWindow()
 
-        setupAndDisplayOverlayButtons()
+//        setupAndDisplayOverlayButtons()
 
         floatingButtonLayout.setOnTouchListener { _, event ->
             when (event.actionMasked) {
@@ -145,7 +141,6 @@ class FloatingButtonService : Service() {
                     Log.d("setOnTouchListener", "finger_down")
                     isMoving = false // Сбросить флаг перед началом нового касания
                     return@setOnTouchListener false // Пока что не потребляем событие
-
                 }
                 // Блок, где определяется подъём пальца от кнопки.
                 MotionEvent.ACTION_UP -> {
@@ -153,7 +148,6 @@ class FloatingButtonService : Service() {
 //                    floatingButtonLayout.postDelayed({
 //                        changeOpacity(opacity)
 //                    }, opacityDuration)
-
                     // Если кнопка не сдвинулась дальше 10 пикселей на любой из осей, то считать это нажатием.
                     if (!hasMoved && abs(initialTouchX - event.rawX) < 10 && abs(
                             initialTouchY - event.rawY
@@ -201,40 +195,47 @@ class FloatingButtonService : Service() {
         }
 
 
-        volumeSlider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            // этот метод тригерится каждый раз, когда изменяется значение ползунка.
-            override fun onProgressChanged(
-                seekBar: SeekBar?, progress: Int, fromUser: Boolean
-            ) {
-                // проверяет, сделано ли изменение пользователем (а не программно)
-                if (fromUser) {
-                    // Обновляет громкость исходя из значений ползунка.
-                    // Отображает индикатор громкости на UI-уровне.
-                    audioManager.setStreamVolume(
-                        AudioManager.STREAM_MUSIC, progress, AudioManager.FLAG_SHOW_UI
-                    )
-                }
-            }
-
-            // Вызывается, когда пользователь начинает трогать ползунок
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-
-            // Вызывается, когда пользователь завершает движение пальцем по ползунку.
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
+//        volumeSlider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+//            // этот метод тригерится каждый раз, когда изменяется значение ползунка.
+//            override fun onProgressChanged(
+//                seekBar: SeekBar?, progress: Int, fromUser: Boolean
+//            ) {
+//                // проверяет, сделано ли изменение пользователем (а не программно)
+//                if (fromUser) {
+//                    // Обновляет громкость исходя из значений ползунка.
+//                    // Отображает индикатор громкости на UI-уровне.
+//                    audioManager.setStreamVolume(
+//                        AudioManager.STREAM_MUSIC, progress, AudioManager.FLAG_SHOW_UI
+//                    )
+//                }
+//            }
+//
+//            // Вызывается, когда пользователь начинает трогать ползунок
+//            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+//
+//            // Вызывается, когда пользователь завершает движение пальцем по ползунку.
+//            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+//        })
         // Устанавливаем исходную прозранчость для макета кнопки
 //        changeOpacity(opacity)
     }
 
-    private fun setupAndDisplayOverlayButtons() {
-        if (floatingButtonLayout.parent == null) {
-            floatingButtonLayout.post {
-                positionSurroundingButtons(mainButton, buttons)
-            }
-            Log.d("PARAMS_", "$params")
-            windowManager.addView(floatingButtonLayout, params)
-        }
+    private fun registerReciverToService() {
+        val filter = IntentFilter()
+        filter.addAction(ACTION_FIVE_POINTS)
+        filter.addAction(ACTION_RECENT_TASK)
+        registerReceiver(reciever, filter)
     }
+
+//    private fun setupAndDisplayOverlayButtons() {
+//        if (floatingButtonLayout.parent == null) {
+//            floatingButtonLayout.post {
+//                positionSurroundingButtons(mainButton, buttons)
+//            }
+//            Log.d("PARAMS_", "$params")
+//            windowManager.addView(floatingButtonLayout, params)
+//        }
+//    }
 
     private fun addButtonsToLayout() {
         for (packageName in packageNames) {
@@ -271,14 +272,10 @@ class FloatingButtonService : Service() {
         }
     }
 
-    private fun setupOverlayWindow() {
-        params = createLayoutParams()
-    }
-
     private fun createLayoutParams(): WindowManager.LayoutParams {
         return WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            layoutDimens,
+            layoutDimens,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             } else {
@@ -287,6 +284,11 @@ class FloatingButtonService : Service() {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             android.graphics.PixelFormat.TRANSLUCENT
         )
+    }
+
+    private fun setupOverlayWindow() {
+        params = createLayoutParams()
+        windowManager.addView(floatingButtonLayout, params)
     }
 
     // Функция изменения прозрачности для floatingButtonLayout.
@@ -306,29 +308,29 @@ class FloatingButtonService : Service() {
      * @param radius Расстояние от главной кнопки до доп.кнопок.
      */
 
-    private fun positionSurroundingButtons(
-        mainButton: View, selectedButtons: List<View>
-    ) {
-        // Рассчитываем центральные координаты главной кнпоки по осям Х/Y.
-        val mainButtonCenterX = mainButton.x + mainButton.width / 2
-        val mainButtonCenterY = mainButton.y + mainButton.height / 2
-        // Рассчитываем приращение угла на основе количества кнопок (size = 6), чтобы расположить их равномерно
-        val angleIncrement = 360.0 / selectedButtons.size
-        // Итерируем по каждой кнпоке для расчёта новой позиции
-        // в макете они изначально на позиции START и TOP.
-        for (i in selectedButtons.indices) {
-            // Рассчитаем угол для кнопки в радианах.
-            val angle = i * angleIncrement * (Math.PI / 180)  // сконвертируем градусы в радианы
-            // Рассчитаем координаты X/Y для текущей кнопки по углу и радиусу
-            val x =
-                (radius * kotlin.math.cos(angle) + mainButtonCenterX).toFloat() - selectedButtons[i].width / 2
-            val y =
-                (radius * kotlin.math.sin(angle) + mainButtonCenterY).toFloat() - selectedButtons[i].height / 2
-            // Установим новую позицию кнопки.
-            selectedButtons[i].x = x
-            selectedButtons[i].y = y
-        }
-    }
+//    private fun positionSurroundingButtons(
+//        mainButton: View, selectedButtons: List<View>
+//    ) {
+//        // Рассчитываем центральные координаты главной кнпоки по осям Х/Y.
+//        val mainButtonCenterX = mainButton.x + mainButton.width / 2
+//        val mainButtonCenterY = mainButton.y + mainButton.height / 2
+//        // Рассчитываем приращение угла на основе количества кнопок (size = 6), чтобы расположить их равномерно
+//        val angleIncrement = 360.0 / selectedButtons.size
+//        // Итерируем по каждой кнпоке для расчёта новой позиции
+//        // в макете они изначально на позиции END и BOTTOM.
+//        for (i in selectedButtons.indices) {
+//            // Рассчитаем угол для кнопки в радианах.
+//            val angle = i * angleIncrement * (Math.PI / 180)  // сконвертируем градусы в радианы
+//            // Рассчитаем координаты X/Y для текущей кнопки по углу и радиусу
+//            val x =
+//                (radius * kotlin.math.cos(angle) + mainButtonCenterX).toFloat() - selectedButtons[i].width / 2
+//            val y =
+//                (radius * kotlin.math.sin(angle) + mainButtonCenterY).toFloat() - selectedButtons[i].height / 2
+//            // Установим новую позицию кнопки.
+//            selectedButtons[i].x = x
+//            selectedButtons[i].y = y
+//        }
+//    }
 
     /**
      * Переключение видимости окружающих кнопок относительно главной кнопки.
@@ -403,9 +405,9 @@ class FloatingButtonService : Service() {
         val angle =
             index * angleIncrement * (Math.PI / 180)  // Конвертирует угол из градусов в радианы
         val finalX =
-            (radius * kotlin.math.cos(angle) + mainButtonCenterX).toFloat() - button.width / 2
+            (radiusFirst * kotlin.math.cos(angle) + mainButtonCenterX).toFloat() - button.width / 2
         val finalY =
-            (radius * kotlin.math.sin(angle) + mainButtonCenterY).toFloat() - button.height / 2
+            (radiusFirst * kotlin.math.sin(angle) + mainButtonCenterY).toFloat() - button.height / 2
         return Pair(finalX, finalY)
     }
 
@@ -442,6 +444,10 @@ class FloatingButtonService : Service() {
                         onShowRecentAppsButtonClick()
                     }
 
+                    R.id.additional_settings_button -> {
+                        additionalSettingsButtonHandler()
+                    }
+
                     else -> {
                         Log.d(
                             "ButtonClick", "App icon clicked: ${button.tag as? String ?: "Unknown"}"
@@ -462,20 +468,16 @@ class FloatingButtonService : Service() {
         }
     }
 
-    private fun backButtonHandler() {
-        floatingButtonLayout.setOnClickListener {
-//            GlobalActionService.instance?.performBackAction()
-            Log.d("BUTTONBACK", "backButtonHandler: ")
+    private fun additionalSettingsButtonHandler() {
 
-        }
     }
 
-    fun onFloatingButtonClick() {
+    private fun onFloatingButtonClick() {
         val intent = Intent("com.myapp.ACTION_PERFORM_BACK")
         sendBroadcast(intent)
     }
 
-    fun onShowRecentAppsButtonClick() {
+    private fun onShowRecentAppsButtonClick() {
         val intent = Intent("com.xbh.action.RECENT_TASK")
         sendBroadcast(intent)
     }
@@ -487,38 +489,38 @@ class FloatingButtonService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         // Если ползунок громкости отображен на экране, то удалим его
-        if (volumeSliderLayout.parent != null) {
-            windowManager.removeView(volumeSliderLayout)
-        }
+//        if (volumeSliderLayout.parent != null) {
+//            windowManager.removeView(volumeSliderLayout)
+//        }
         // Всегда удаляем кнопку на экране, если сервис прекращает выполнение.
         windowManager.removeView(floatingButtonLayout)
         unregisterReceiver(reciever)
     }
 
     //обработчик кнопки "Громкость"
-    private fun volumeButtonHandler() {
-        if (volumeSliderLayout.parent == null) { // Условие, если ползунок еще не отображен
-            // Определяем параметры макета для ползунка громкости
-            val volumeParams = createLayoutParams()
-            // Получаем текущую позицию основной кнопки
-            val mainButtonX = params.x + mainButton.width
-            val mainButtonY = params.y
-            // Устанавливаем позицию макета volumeSliderLayout
-            volumeParams.x = mainButtonX
-            volumeParams.y = mainButtonY
-            // Обновляем ползунок согласно системным значениям громкости
-            volumeSlider.max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-            volumeSlider.progress = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-            // Добавляем слайдер на экран
-            if (volumeSliderLayout.parent == null) {
-                windowManager.addView(volumeSliderLayout, volumeParams)
-            }
-        } else {
-            // Если ползунок уже отображен, удаляем с экрана
-            windowManager.removeView(volumeSliderLayout)
-        }
-        Log.d("Button", "Volume clicked")
-    }
+//    private fun volumeButtonHandler() {
+//        if (volumeSliderLayout.parent == null) { // Условие, если ползунок еще не отображен
+//            // Определяем параметры макета для ползунка громкости
+//            val volumeParams = createLayoutParams()
+//            // Получаем текущую позицию основной кнопки
+//            val mainButtonX = params.x + mainButton.width
+//            val mainButtonY = params.y
+//            // Устанавливаем позицию макета volumeSliderLayout
+//            volumeParams.x = mainButtonX
+//            volumeParams.y = mainButtonY
+//            // Обновляем ползунок согласно системным значениям громкости
+//            volumeSlider.max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+//            volumeSlider.progress = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+//            // Добавляем слайдер на экран
+//            if (volumeSliderLayout.parent == null) {
+//                windowManager.addView(volumeSliderLayout, volumeParams)
+//            }
+//        } else {
+//            // Если ползунок уже отображен, удаляем с экрана
+//            windowManager.removeView(volumeSliderLayout)
+//        }
+//        Log.d("Button", "Volume clicked")
+//    }
 
     //Обработчик кнопки "ДОМОЙ"
     private fun homeButtonHandler() {
@@ -613,10 +615,6 @@ class FloatingButtonService : Service() {
 
                 params.x = posX!! - screenWidth / 2
                 params.y = posY!! - screenHeight / 2
-//                if (floatingButtonLayout.visibility == View.INVISIBLE || floatingButtonLayout.visibility == View.GONE) {
-//                    floatingButtonLayout.visibility = View.VISIBLE
-//                    windowManager.updateViewLayout(floatingButtonLayout, params)
-//                }
                 windowManager.updateViewLayout(floatingButtonLayout, params)
             }
         }
