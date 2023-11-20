@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="button_dim">24dp</dimen>
+    <dimen name="button_dim">36dp</dimen>
     <dimen name="ellipse_outer_dim">35dp</dimen>
     <dimen name="ellipse_inner_dim">20dp</dimen>
     <dimen name="framelayout_dim">100dp</dimen>

@@ -5,6 +5,12 @@
     android:layout_height="@dimen/framelayout_dim">
 
     <!-- Outer Circle -->
+<!--    <View-->
+<!--        android:id="@+id/main_btn"-->
+<!--        android:layout_width="@dimen/ellipse_outer_dim"-->
+<!--        android:layout_height="@dimen/ellipse_outer_dim"-->
+<!--        android:layout_gravity="center"-->
+<!--        android:src="@drawable/ikar_fab_img"/>-->
     <View
         android:id="@+id/ellipse_outer"
         android:layout_width="@dimen/ellipse_outer_dim"
@@ -81,7 +87,8 @@
         android:layout_marginStart="@dimen/additional_buttons_margins"
         android:layout_marginTop="@dimen/additional_buttons_margins"
         android:background="@android:color/transparent"
-        android:scaleType="centerCrop"
+        android:scaleType="fitXY"
+        android:adjustViewBounds="true"
         android:src="@drawable/additional_settings_icon"
         android:visibility="invisible" />
 
