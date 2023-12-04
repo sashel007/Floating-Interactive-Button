@@ -43,7 +43,7 @@ import ru.ikar.floatingbutton_ikar.FloatingButtonService
 
 class SettingsActivity : ComponentActivity() {
 
-    private val OVERLAY_PERMISSION_REQ_CODE = 1001  // ваш код запроса для этого разрешения
+    private val overlayPermissionReqCode = 1001  // ваш код запроса для этого разрешения
     private lateinit var sharedPreferences: SharedPreferences
 
     private val accessibilityServiceIntent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
@@ -102,14 +102,14 @@ class SettingsActivity : ComponentActivity() {
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")
             )
             // Запускаем активность для результата (для получения ответа о предоставлении разрешения).
-            startActivityForResult(intent, OVERLAY_PERMISSION_REQ_CODE)
+            startActivityForResult(intent, overlayPermissionReqCode)
         }
     }
 
     // Этот метод будет вызван после того, как пользователь предоставит или отклонит разрешение
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == OVERLAY_PERMISSION_REQ_CODE) {
+        if (requestCode == overlayPermissionReqCode) {
             if (Settings.canDrawOverlays(this)) {
                 startFloatingButtonService()
             } else {

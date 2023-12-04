@@ -30,6 +30,8 @@ class FloatingButtonService : Service() {
 
     private var initialX: Int = 0
     private var initialY: Int = 0
+    private var xTrackingDotsForPanel: Int = 0
+    private var yTrackingDotsForPanel: Int = 0
     private var initialTouchX: Float = 0f
     private var initialTouchY: Float = 0f
     private var lastAction: Int? = null
@@ -45,15 +47,12 @@ class FloatingButtonService : Service() {
     private lateinit var floatingButtonLayout: View
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var packageNames: List<String>
-    private val ACTION_FIVE_POINTS: String = "com.xbh.fivePoint"
-    private val ACTION_RECENT_TASK: String = "com.xbh.action.RECENT_TASK"
+    private val actionFivePoints: String = "com.xbh.fivePoint"
+    private val actionRecentTask: String = "com.xbh.action.RECENT_TASK"
     private lateinit var hideButtonsRunnable: Runnable
     private var isMoving = false
-
-    companion object {
-        private const val REQUEST_CODE = 101 // or any other integer
-        private const val FADE_DURATION = 250L
-    }
+    private lateinit var settingsPanelLayout: View
+    private var isPanelShown = false // состояние панели (показана/скрыта)
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -75,6 +74,9 @@ class FloatingButtonService : Service() {
             LayoutInflater.from(this).inflate(R.layout.floating_button_layout, null)
         mainButton = floatingButtonLayout.findViewById(R.id.ellipse_outer)
 
+        settingsPanelLayout =
+            LayoutInflater.from(this).inflate(R.layout.settings_panel_layout, null)
+
         buttons = mutableListOf(
             floatingButtonLayout.findViewById(R.id.settings_button),
             floatingButtonLayout.findViewById(R.id.additional_settings_button),
@@ -86,6 +88,8 @@ class FloatingButtonService : Service() {
         // Добавляем базовые кнопки (включая иконки приложений)
         addButtonsToLayout()
 
+        addSettingsPanelToLayout()
+
         // Ставим слушатели на вспомогательные кнопки
         setListenersForButtons()
 
@@ -95,6 +99,23 @@ class FloatingButtonService : Service() {
         // Установка слушателя на основную кнопку
         onMoveButtonLogic()
 
+    }
+
+    private fun addSettingsPanelToLayout() {
+        val panelParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                WindowManager.LayoutParams.TYPE_PHONE
+            },
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            android.graphics.PixelFormat.TRANSLUCENT
+        )
+        // По умолчанию скрываем панель
+        settingsPanelLayout.visibility = View.GONE
+        windowManager.addView(settingsPanelLayout, panelParams)
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -144,6 +165,8 @@ class FloatingButtonService : Service() {
                         hasMoved = true
                     }
                     isMoving = true // Установить флаг, так как происходит перемещение
+                    xTrackingDotsForPanel = params.x
+                    yTrackingDotsForPanel = params.y
                     return@setOnTouchListener true // Потребляем событие, так как это движение
                 }
 
@@ -154,8 +177,8 @@ class FloatingButtonService : Service() {
 
     private fun registerReceiverOnService() {
         val filter = IntentFilter().apply {
-            addAction(ACTION_FIVE_POINTS)
-            addAction(ACTION_RECENT_TASK)
+            addAction(actionFivePoints)
+            addAction(actionRecentTask)
         }
         registerReceiver(reciever, filter)
     }
@@ -286,14 +309,11 @@ class FloatingButtonService : Service() {
 
     /**
      * Обработаем логику доп.кнопок при итерировании по списку кнопок.
-     *
-     *
-     * @param index Возвращаем кнопку по индексу в списке.
      */
 
     private fun setListenersForButtons() {
         for (button in buttons) {
-            button.setOnClickListener {
+            button.setOnClickListener { it ->
                 when (button.id) {
                     R.id.settings_button -> {
                         settingsButtonHandler(button)
@@ -312,6 +332,7 @@ class FloatingButtonService : Service() {
                     }
 
                     R.id.additional_settings_button -> {
+                        animateButton(button)
                         additionalSettingsButtonHandler(button)
                     }
 
@@ -337,7 +358,20 @@ class FloatingButtonService : Service() {
     }
 
     private fun additionalSettingsButtonHandler(button: View) {
+        if (isPanelShown) {
+            settingsPanelLayout.visibility = View.GONE
+        } else {
+            // Конвертируем 50dp в пиксели
+            val offset = convertDpToPixel(100, this)
 
+            val layoutParams = settingsPanelLayout.layoutParams as WindowManager.LayoutParams
+            layoutParams.x = xTrackingDotsForPanel + offset
+            layoutParams.y = yTrackingDotsForPanel
+            windowManager.updateViewLayout(settingsPanelLayout, layoutParams)
+
+            settingsPanelLayout.visibility = View.VISIBLE
+        }
+        isPanelShown = !isPanelShown
     }
 
     private fun onFloatingButtonClick(button: View) {
@@ -349,6 +383,7 @@ class FloatingButtonService : Service() {
     private fun onShowRecentAppsButtonClick(button: View) {
         val intent = Intent("com.xbh.action.RECENT_TASK")
         sendBroadcast(intent)
+        animateButton(button)
     }
 
     /**
@@ -408,11 +443,11 @@ class FloatingButtonService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val SERVICE_CHANNEL_ID = "fab_service_channel"
+        val serviceChannelId = "fab_service_channel"
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
-                SERVICE_CHANNEL_ID,
+                serviceChannelId,
                 "Foreground Service Channel",
                 NotificationManager.IMPORTANCE_DEFAULT
             )
@@ -423,7 +458,7 @@ class FloatingButtonService : Service() {
         }
 
         val notification =
-            NotificationCompat.Builder(this, SERVICE_CHANNEL_ID).setContentTitle("FAB_Service")
+            NotificationCompat.Builder(this, serviceChannelId).setContentTitle("FAB_Service")
                 .setContentText("Сервис запущен").setSmallIcon(R.drawable.ic_launcher_background)
                 .build()
 
@@ -433,8 +468,7 @@ class FloatingButtonService : Service() {
     }
 
     private val reciever: BroadcastReceiver = object : BroadcastReceiver() {
-        private val ACTION_FIVE_POINTS = "com.xbh.fivePoint"
-        private val ACTION_RECENT_TASK = "com.xbh.action.RECENT_TASK"
+        private val actionFivePoints = "com.xbh.fivePoint"
 
         override fun onReceive(context: Context, intent: Intent) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -442,9 +476,7 @@ class FloatingButtonService : Service() {
             } else {
                 context.startService(Intent(context, FloatingButtonService::class.java))
             }
-            Log.d("PPOIUYTRE", "onReceive: ." + intent.action)
-            if (intent.action == ACTION_FIVE_POINTS) {
-                Log.d("UFEGIUHEIUFHIWEF", "onReceive: .")
+            if (intent.action == actionFivePoints) {
                 val posX: Int? = intent.extras?.getInt("PosX")
                 val posY: Int? = intent.extras?.getInt("PosY")
 
@@ -457,5 +489,9 @@ class FloatingButtonService : Service() {
                 windowManager.updateViewLayout(floatingButtonLayout, params)
             }
         }
+    }
+
+    private fun convertDpToPixel(dp: Int, context: Context): Int {
+        return (dp * context.resources.displayMetrics.density).toInt()
     }
 }
