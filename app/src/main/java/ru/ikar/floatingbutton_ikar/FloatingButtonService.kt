@@ -19,6 +19,7 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.FrameLayout
 import android.widget.ImageButton
@@ -143,6 +144,10 @@ class FloatingButtonService : Service() {
                         ) < 10
                     ) {
                         toggleButtonsVisibility(buttons, mainButton)
+                        if (isPanelShown) {
+                            settingsPanelLayout.visibility = View.GONE
+                            !isPanelShown
+                        }
                         return@setOnTouchListener false
                     } else {
                         // Сохраняем и возвращаем в лямбду последнее касание.
@@ -164,6 +169,12 @@ class FloatingButtonService : Service() {
                     if (abs(initialTouchX - event.rawX) > 10 || abs(initialTouchY - event.rawY) > 10) {
                         hasMoved = true
                     }
+
+                    // Обновляем позицию панели, если она отображается
+                    if (isPanelShown) {
+                        updatePanelPosition()
+                    }
+
                     isMoving = true // Установить флаг, так как происходит перемещение
                     xTrackingDotsForPanel = params.x
                     yTrackingDotsForPanel = params.y
@@ -173,6 +184,15 @@ class FloatingButtonService : Service() {
                 else -> return@setOnTouchListener false
             }
         }
+    }
+
+    // Функция для обновления позиции панели
+    private fun updatePanelPosition() {
+        val offset = convertDpToPixel(100, this) // Или любой другой нужный вам отступ
+        val panelLayoutParams = settingsPanelLayout.layoutParams as WindowManager.LayoutParams
+        panelLayoutParams.x = params.x + offset
+        panelLayoutParams.y = params.y
+        windowManager.updateViewLayout(settingsPanelLayout, panelLayoutParams)
     }
 
     private fun registerReceiverOnService() {
@@ -257,6 +277,7 @@ class FloatingButtonService : Service() {
                         button.visibility = View.INVISIBLE
                     }.start()
             }
+            // Если панель отображается и кнопки собираются свернуться, скрыть панель
         } else {
             // Кнопки уже свёрнуты, надо их развернуть
             for ((index, button) in selectedButtons.withIndex()) {
@@ -358,19 +379,31 @@ class FloatingButtonService : Service() {
     }
 
     private fun additionalSettingsButtonHandler(button: View) {
-        if (isPanelShown) {
-            settingsPanelLayout.visibility = View.GONE
-        } else {
-            // Конвертируем 50dp в пиксели
-            val offset = convertDpToPixel(100, this)
+        // Загружаем анимацию прозрачности
+        val fadeInAnim = AnimationUtils.loadAnimation(this, R.anim.fade_in_animation)
 
+        // Анимация исчезновения (fade out) - если нужна
+        val fadeOutAnim = AnimationUtils.loadAnimation(this, R.anim.fade_out_animation)
+
+        // Проверяем, отображена ли панель
+        if (!isPanelShown) {
+            // Устанавливаем позицию и размеры панели
+            val offset = convertDpToPixel(100, this)
             val layoutParams = settingsPanelLayout.layoutParams as WindowManager.LayoutParams
             layoutParams.x = xTrackingDotsForPanel + offset
             layoutParams.y = yTrackingDotsForPanel
             windowManager.updateViewLayout(settingsPanelLayout, layoutParams)
 
+            // Показываем панель и применяем анимацию появления
             settingsPanelLayout.visibility = View.VISIBLE
+            settingsPanelLayout.startAnimation(fadeInAnim)
+        } else {
+            // Применяем анимацию исчезновения и скрываем панель
+            settingsPanelLayout.startAnimation(fadeOutAnim)
+            settingsPanelLayout.visibility = View.GONE
         }
+
+        // Переключаем состояние видимости панели
         isPanelShown = !isPanelShown
     }
 
