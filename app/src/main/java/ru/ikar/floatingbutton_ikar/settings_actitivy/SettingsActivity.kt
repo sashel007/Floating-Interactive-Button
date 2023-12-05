@@ -1,5 +1,6 @@
 package ru.ikar.floatingbutton_ikar.settings_actitivy
 
+import android.bluetooth.BluetoothAdapter
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -49,6 +50,8 @@ class SettingsActivity : ComponentActivity() {
     private val accessibilityServiceIntent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
     private lateinit var accessibilityPermissionLauncher: ActivityResultLauncher<Intent>
 
+    private lateinit var bluetoothEnableLauncher: ActivityResultLauncher<Intent>
+
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,6 +83,18 @@ class SettingsActivity : ComponentActivity() {
             // Если разрешение не предоставлено, предложите пользователю предоставить его
             requestAccessibilityPermission()
         }
+
+        bluetoothEnableLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            if (result.resultCode == RESULT_OK) {
+                // Bluetooth был включен пользователем
+            } else {
+                // Пользователь отказался включать Bluetooth
+            }
+        }
+
+        checkAndRequestBluetoothEnable()
 
         setContent {
 //            MyScreen()
@@ -201,6 +216,14 @@ class SettingsActivity : ComponentActivity() {
         val allEntries = sharedPreferences.all
         for ((key, value) in allEntries) {
             Log.d("SharedPreferences__", key + ": " + value.toString())
+        }
+    }
+
+    private fun checkAndRequestBluetoothEnable() {
+        val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
+        if (bluetoothAdapter != null && !bluetoothAdapter.isEnabled) {
+            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            bluetoothEnableLauncher.launch(enableBtIntent)
         }
     }
 }

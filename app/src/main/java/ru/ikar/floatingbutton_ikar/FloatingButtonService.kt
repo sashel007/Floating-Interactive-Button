@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.bluetooth.BluetoothAdapter
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -19,13 +20,13 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import androidx.core.app.NotificationCompat
 import kotlin.math.abs
+
 
 class FloatingButtonService : Service() {
 
@@ -42,6 +43,7 @@ class FloatingButtonService : Service() {
     private var hasMoved = false
     private lateinit var pm: PackageManager
     private lateinit var buttons: MutableList<View>
+    private lateinit var panelButtons: List<View>
     private lateinit var windowManager: WindowManager
     private lateinit var mainButton: View
     private lateinit var params: WindowManager.LayoutParams
@@ -54,6 +56,11 @@ class FloatingButtonService : Service() {
     private var isMoving = false
     private lateinit var settingsPanelLayout: View
     private var isPanelShown = false // состояние панели (показана/скрыта)
+    private lateinit var bluetoothAdapter: BluetoothAdapter
+
+    companion object {
+        private const val REQUEST_ENABLE_BT = 12004
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -67,8 +74,19 @@ class FloatingButtonService : Service() {
         sharedPreferences = getSharedPreferences("app_package_names", Context.MODE_PRIVATE)
         packageNames = getPackageNamesFromSharedPreferences()
 
-        // Регистрация сервиса
+        // Регистрация сервиса для пяти касаний
         registerReceiverOnService()
+
+        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
+
+        // Инициализация
+//        bluetoothEnableLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+//            if (result.resultCode == Activity.RESULT_OK) {
+//                // Пользователь согласился включить Bluetooth
+//            } else {
+//                // Пользователь отказался включать Bluetooth
+//            }
+//        }
 
         // инфлейтим макет кнопки (floating button).
         floatingButtonLayout =
@@ -86,6 +104,15 @@ class FloatingButtonService : Service() {
             floatingButtonLayout.findViewById(R.id.show_all_running_apps_button)
         )
 
+        panelButtons = listOf(
+            settingsPanelLayout.findViewById(R.id.wifi_panel_btn),
+            settingsPanelLayout.findViewById(R.id.bluetooth_panel_btn),
+            settingsPanelLayout.findViewById(R.id.volume_panel_btn),
+            settingsPanelLayout.findViewById(R.id.brightness_panel_btn),
+            settingsPanelLayout.findViewById(R.id.volume_off_panel_btn),
+            settingsPanelLayout.findViewById(R.id.screenshot_panel_btn)
+        )
+
         // Добавляем базовые кнопки (включая иконки приложений)
         addButtonsToLayout()
 
@@ -94,12 +121,28 @@ class FloatingButtonService : Service() {
         // Ставим слушатели на вспомогательные кнопки
         setListenersForButtons()
 
+        // Слушатели на кнопки панели
+        setListenersForPanelButtons()
+
         // Применяем настройки WindowManager
         setupOverlayWindow()
 
         // Установка слушателя на основную кнопку
         onMoveButtonLogic()
 
+        // Обновить состояние кнопки Блютуз
+        updateBluetoothButtonState(panelButtons[1])
+
+
+    }
+
+    private fun updateBluetoothButtonState(button: View) {
+        val color = if (bluetoothAdapter.isEnabled) {
+            getColor(R.color.bluetooth_on)
+        } else {
+            getColor(R.color.bluetooth_off)
+        }
+        button.setBackgroundColor(color)
     }
 
     private fun addSettingsPanelToLayout() {
@@ -199,6 +242,7 @@ class FloatingButtonService : Service() {
         val filter = IntentFilter().apply {
             addAction(actionFivePoints)
             addAction(actionRecentTask)
+            addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
         }
         registerReceiver(reciever, filter)
     }
@@ -370,6 +414,55 @@ class FloatingButtonService : Service() {
         }
     }
 
+    private fun setListenersForPanelButtons() {
+        for (button in panelButtons) {
+            button.setOnClickListener {
+                when (button.id) {
+                    R.id.wifi_panel_btn -> {
+                        Log.d("WIFI_BTN", "id = ")
+                        animateButton(button)
+                        val wifiIntent = Intent(Settings.ACTION_WIFI_SETTINGS)
+                        wifiIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // Добавление флага
+                        startActivity(wifiIntent)
+                    }
+
+                    R.id.bluetooth_panel_btn -> {
+                        animateButton(button)
+                        toggleBluetooth()
+                        updateBluetoothButtonState(it)
+                    }
+
+                    R.id.volume_panel_btn -> {
+                        animateButton(button)
+                    }
+
+                    R.id.brightness_panel_btn -> {
+                        animateButton(button)
+                    }
+
+                    R.id.volume_off_panel_btn -> {
+                        animateButton(button)
+                    }
+
+                    R.id.screenshot_panel_btn -> {
+                        animateButton(button)
+                    }
+
+                }
+            }
+        }
+    }
+
+    private fun toggleBluetooth() {
+        if (bluetoothAdapter.isEnabled) {
+            bluetoothAdapter.disable() // Выключить Bluetooth
+        } else {
+            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            enableBtIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(enableBtIntent) // Запросить включение Bluetooth
+        }
+    }
+
     private fun animateButton(button: View) {
         button.startAnimation(
             AnimationUtils.loadAnimation(
@@ -441,7 +534,7 @@ class FloatingButtonService : Service() {
     private fun settingsButtonHandler(button: View) {
         try {
             val settingsIntent = Intent(Settings.ACTION_SETTINGS)
-            settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // Добавление ф
+            settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // Добавление флага
             startActivity(settingsIntent)
             animateButton(button)
         } catch (e: Exception) {
@@ -520,6 +613,25 @@ class FloatingButtonService : Service() {
                 params.x = posX!! - screenWidth / 2
                 params.y = posY!! - screenHeight / 2
                 windowManager.updateViewLayout(floatingButtonLayout, params)
+            } else if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                when (state) {
+                    BluetoothAdapter.STATE_OFF -> {
+                        // Bluetooth has been turned off;
+                    }
+
+                    BluetoothAdapter.STATE_TURNING_OFF -> {
+                        // Bluetooth is turning off;
+                    }
+
+                    BluetoothAdapter.STATE_ON -> {
+                        // Bluetooth is on
+                    }
+
+                    BluetoothAdapter.STATE_TURNING_ON -> {
+                        // Bluetooth is turning on
+                    }
+                }
             }
         }
     }

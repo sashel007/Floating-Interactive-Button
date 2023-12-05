@@ -5,4 +5,5 @@
     <dimen name="ellipse_inner_dim">20dp</dimen>
     <dimen name="framelayout_dim">100dp</dimen>
     <dimen name="additional_buttons_margins">60dp</dimen>
+    <dimen name="panel_dims">16dp</dimen>
 </resources>
