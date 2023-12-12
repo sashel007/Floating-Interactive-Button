@@ -1,14 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
-    android:layout_height="200dp">
+    android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="horizontal">
 
-    <SeekBar
+    <androidx.constraintlayout.widget.Group
+        android:id="@+id/volume_slider_group"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:constraint_referenced_ids="on_off_mute_btn, volume_slider"/>
+    <ImageButton
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/volume_slider"
+        android:id="@+id/on_off_mute_btn"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/volume_off_panel_icon"/>
+
+    <com.google.android.material.slider.Slider
+        app:layout_constraintStart_toEndOf="@id/on_off_mute_btn"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
         android:id="@+id/volume_slider"
-        android:layout_width="100dp"
-        android:layout_height="123dp"
+        android:layout_width="200dp"
+        android:layout_height="30dp"
         android:layout_gravity="center"
-        android:max="100"
-        android:rotation="270" />
-</FrameLayout>
+        android:theme="@style/Theme.FloatingButton_IKAR"/>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,6 +1,7 @@
 package ru.ikar.floatingbutton_ikar
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
@@ -11,20 +12,31 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
+import android.graphics.PixelFormat
 import android.graphics.Point
+import android.hardware.display.DisplayManager
+import android.hardware.display.VirtualDisplay
+import android.media.AudioManager
+import android.media.ImageReader
+import android.media.projection.MediaProjection
+import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
+import android.view.Surface
 import android.view.View
 import android.view.WindowManager
 import android.view.animation.AnimationUtils
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
+import androidx.constraintlayout.widget.Group
 import androidx.core.app.NotificationCompat
+import com.google.android.material.slider.Slider
 import kotlin.math.abs
 
 
@@ -47,6 +59,7 @@ class FloatingButtonService : Service() {
     private lateinit var windowManager: WindowManager
     private lateinit var mainButton: View
     private lateinit var params: WindowManager.LayoutParams
+    private lateinit var volumeSliderParams: WindowManager.LayoutParams
     private lateinit var floatingButtonLayout: View
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var packageNames: List<String>
@@ -57,9 +70,20 @@ class FloatingButtonService : Service() {
     private lateinit var settingsPanelLayout: View
     private var isPanelShown = false // состояние панели (показана/скрыта)
     private lateinit var bluetoothAdapter: BluetoothAdapter
+    private lateinit var audioManager: AudioManager
+    private lateinit var mediaProjection: MediaProjection
+    private lateinit var virtualDisplay: VirtualDisplay
+    private lateinit var imageReader: ImageReader
+    private lateinit var surface: Surface
+    private lateinit var volumeSlider: Slider
+    private lateinit var volumeSliderLayout: View
+    private lateinit var volumeSLiderGroup: Group
+    private var isVolumeSeekBarShown = false
 
     companion object {
         private const val REQUEST_ENABLE_BT = 12004
+        const val EXTRA_RESULT_CODE = "EXTRA_RESULT_CODE"
+        const val EXTRA_RESULT_INTENT = "EXTRA_RESULT_INTENT"
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -79,7 +103,7 @@ class FloatingButtonService : Service() {
 
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
 
-        // Инициализация
+//        // Инициализация
 //        bluetoothEnableLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
 //            if (result.resultCode == Activity.RESULT_OK) {
 //                // Пользователь согласился включить Bluetooth
@@ -88,13 +112,19 @@ class FloatingButtonService : Service() {
 //            }
 //        }
 
+        // Инициализация AudioManager
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
         // инфлейтим макет кнопки (floating button).
         floatingButtonLayout =
             LayoutInflater.from(this).inflate(R.layout.floating_button_layout, null)
         mainButton = floatingButtonLayout.findViewById(R.id.ellipse_outer)
 
+        volumeSliderLayout =
+            LayoutInflater.from(this).inflate(R.layout.volume_slider_layout, null)
         settingsPanelLayout =
             LayoutInflater.from(this).inflate(R.layout.settings_panel_layout, null)
+
 
         buttons = mutableListOf(
             floatingButtonLayout.findViewById(R.id.settings_button),
@@ -118,6 +148,8 @@ class FloatingButtonService : Service() {
 
         addSettingsPanelToLayout()
 
+        addVolumeSliderToLayout()
+
         // Ставим слушатели на вспомогательные кнопки
         setListenersForButtons()
 
@@ -132,7 +164,6 @@ class FloatingButtonService : Service() {
 
         // Обновить состояние кнопки Блютуз
         updateBluetoothButtonState(panelButtons[1])
-
 
     }
 
@@ -155,7 +186,7 @@ class FloatingButtonService : Service() {
                 WindowManager.LayoutParams.TYPE_PHONE
             },
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            android.graphics.PixelFormat.TRANSLUCENT
+            PixelFormat.TRANSLUCENT
         )
         // По умолчанию скрываем панель
         settingsPanelLayout.visibility = View.GONE
@@ -218,6 +249,10 @@ class FloatingButtonService : Service() {
                         updatePanelPosition()
                     }
 
+                    if (isVolumeSeekBarShown) {
+                        updateVolumeSliderPosition()
+                    }
+
                     isMoving = true // Установить флаг, так как происходит перемещение
                     xTrackingDotsForPanel = params.x
                     yTrackingDotsForPanel = params.y
@@ -236,6 +271,14 @@ class FloatingButtonService : Service() {
         panelLayoutParams.x = params.x + offset
         panelLayoutParams.y = params.y
         windowManager.updateViewLayout(settingsPanelLayout, panelLayoutParams)
+    }
+
+    private fun updateVolumeSliderPosition() {
+        val offset = convertDpToPixel(100, this)
+        volumeSliderParams.x = xTrackingDotsForPanel - offset
+        volumeSliderParams.y = yTrackingDotsForPanel
+        volumeSlider.visibility = View.VISIBLE
+        windowManager.updateViewLayout(volumeSliderLayout, volumeSliderParams)
     }
 
     private fun registerReceiverOnService() {
@@ -285,7 +328,7 @@ class FloatingButtonService : Service() {
                 WindowManager.LayoutParams.TYPE_PHONE
             },
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            android.graphics.PixelFormat.TRANSLUCENT
+            PixelFormat.TRANSLUCENT
         )
     }
 
@@ -298,7 +341,6 @@ class FloatingButtonService : Service() {
      * Переключение видимости окружающих кнопок относительно главной кнопки.
      * Когда кнопки невидимы, эта функция разворачивает их вокруг кнопки.
      * Когда видимы - она сворачивает их обратно.
-     *
      * @param selectedButtons Список кнопок.
      * @param mainButton Центральная кнопка, вокгруг которой рендерятся доп.кнопки.
      */
@@ -421,9 +463,7 @@ class FloatingButtonService : Service() {
                     R.id.wifi_panel_btn -> {
                         Log.d("WIFI_BTN", "id = ")
                         animateButton(button)
-                        val wifiIntent = Intent(Settings.ACTION_WIFI_SETTINGS)
-                        wifiIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // Добавление флага
-                        startActivity(wifiIntent)
+                        wifiBtnHandler()
                     }
 
                     R.id.bluetooth_panel_btn -> {
@@ -434,6 +474,7 @@ class FloatingButtonService : Service() {
 
                     R.id.volume_panel_btn -> {
                         animateButton(button)
+                        volumeButtonHandler()
                     }
 
                     R.id.brightness_panel_btn -> {
@@ -442,6 +483,8 @@ class FloatingButtonService : Service() {
 
                     R.id.volume_off_panel_btn -> {
                         animateButton(button)
+                        muteVolume()
+                        updateBluetoothButtonState(it)
                     }
 
                     R.id.screenshot_panel_btn -> {
@@ -451,6 +494,50 @@ class FloatingButtonService : Service() {
                 }
             }
         }
+    }
+
+    private fun volumeButtonHandler() {
+        if (!isVolumeSeekBarShown) { // Условие, если ползунок еще не отображен
+            // Определяем параметры макета для ползунка громкости
+            val volumeParams = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                } else {
+                    WindowManager.LayoutParams.TYPE_PHONE
+                },
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT
+            )
+            // Получаем текущую позицию основной кнопки
+            val mainButtonX = params.x + mainButton.width
+            val mainButtonY = params.y
+            // Устанавливаем позицию макета volumeSliderLayout
+            volumeParams.x = mainButtonX
+            volumeParams.y = mainButtonY
+            // Обновляем ползунок согласно системным значениям громкости
+            // Устанавливаем максимальное значение слайдера
+            volumeSlider.valueTo = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()
+
+            // Устанавливаем текущее значение слайдера
+            volumeSlider.value = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat()
+
+            volumeSlider.visibility = View.VISIBLE
+            updateVolumeSliderPosition()
+        } else {
+            // Если ползунок уже отображен, удаляем с экрана
+            volumeSlider.visibility = View.GONE
+//            windowManager.removeView(volumeSliderLayout)
+        }
+        isVolumeSeekBarShown = !isVolumeSeekBarShown
+
+    }
+
+    private fun wifiBtnHandler() {
+        val wifiIntent = Intent(Settings.Panel.ACTION_WIFI)
+        wifiIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // Добавление флага
+        startActivity(wifiIntent)
     }
 
     private fun toggleBluetooth() {
@@ -571,26 +658,102 @@ class FloatingButtonService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val serviceChannelId = "fab_service_channel"
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val serviceChannel = NotificationChannel(
-                serviceChannelId,
-                "Foreground Service Channel",
-                NotificationManager.IMPORTANCE_DEFAULT
-            )
+        // Получение данных о захвате экрана
+        val resultCode = intent?.getIntExtra(EXTRA_RESULT_CODE, Activity.RESULT_CANCELED)
+        val resultData = intent?.getParcelableExtra<Intent>(EXTRA_RESULT_INTENT)
 
-            val notificationManager =
-                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(serviceChannel)
+        if (resultCode != null && resultData != null && resultCode == Activity.RESULT_OK) {
+            val mediaProjectionManager =
+                getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+            mediaProjection = mediaProjectionManager.getMediaProjection(resultCode, resultData)
+
+            createVirtualDisplay()
         }
 
-        val notification =
-            NotificationCompat.Builder(this, serviceChannelId).setContentTitle("FAB_Service")
-                .setContentText("Сервис запущен").setSmallIcon(R.drawable.ic_launcher_background)
-                .build()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val notification =
+                NotificationCompat.Builder(this, serviceChannelId).setContentTitle("FAB_Service")
+                    .setContentText("Сервис запущен")
+                    .setSmallIcon(R.drawable.ic_launcher_background).build()
 
-        startForeground(1123124590, notification)
+            startForeground(
+                1123124590, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+            )
+        } else {
+            val notification =
+                NotificationCompat.Builder(this, serviceChannelId).setContentTitle("FAB_Service")
+                    .setContentText("Сервис запущен")
+                    .setSmallIcon(R.drawable.ic_launcher_background).build()
+
+            startForeground(1123124590, notification)
+        }
+
 
         return START_NOT_STICKY
+    }
+
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//            val serviceChannel = NotificationChannel(
+//                serviceChannelId,
+//                "Foreground Service Channel",
+//                NotificationManager.IMPORTANCE_DEFAULT
+//            )
+//
+//            val notificationManager =
+//                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+//            notificationManager.createNotificationChannel(serviceChannel)
+//        }
+
+
+//        val notification =
+//            NotificationCompat.Builder(this, serviceChannelId).setContentTitle("FAB_Service")
+//                .setContentText("Сервис запущен").setSmallIcon(R.drawable.ic_launcher_background)
+//                .build()
+
+//        val mediaProjectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+//        mediaProjection = resultData?.let {
+//            mediaProjectionManager.getMediaProjection(resultCode,
+//                it
+//            )
+//        }!!
+//
+//        createVirtualDisplay()
+//
+//        startForeground(1123124590, notification)
+//
+//        return START_NOT_STICKY
+//    }
+
+    private fun createNotificationChannel(channelId: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val serviceChannel = NotificationChannel(
+                channelId, "Foreground Service Channel", NotificationManager.IMPORTANCE_DEFAULT
+            )
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(serviceChannel)
+        }
+    }
+
+    private fun createVirtualDisplay() {
+        val displayMetrics = resources.displayMetrics
+        val width = displayMetrics.widthPixels
+        val height = displayMetrics.heightPixels
+
+        imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
+        surface = imageReader.surface
+
+        virtualDisplay = mediaProjection.createVirtualDisplay(
+            "FloatingButtonService",
+            width,
+            height,
+            displayMetrics.densityDpi,
+            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+            surface,
+            null,
+            null
+        )
+
+        // Здесь можно добавить listener для imageReader, чтобы обрабатывать захваченные изображения
     }
 
     private val reciever: BroadcastReceiver = object : BroadcastReceiver() {
@@ -638,5 +801,47 @@ class FloatingButtonService : Service() {
 
     private fun convertDpToPixel(dp: Int, context: Context): Int {
         return (dp * context.resources.displayMetrics.density).toInt()
+    }
+
+    // Метод для установки уровня громкости на 0
+    private fun muteVolume() {
+        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
+    }
+
+    private fun addVolumeSliderToLayout() {
+
+        volumeSlider = volumeSliderLayout.findViewById(R.id.volume_slider)
+
+        volumeSlider.addOnChangeListener { slider, value, fromUser ->
+            if (fromUser) {
+                val progress = value.toInt()
+                Log.d("VerticalSlider", "Slider progress changed: $progress")
+                audioManager.setStreamVolume(
+                    AudioManager.STREAM_MUSIC,
+                    progress,
+                    AudioManager.FLAG_SHOW_UI
+                )
+            }
+        }
+
+        volumeSliderParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                WindowManager.LayoutParams.TYPE_PHONE
+            },
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT
+        )
+
+        volumeSliderParams.width = 30
+        volumeSliderParams.height = 200
+
+        // Настройка параметров окна
+        windowManager.addView(volumeSliderLayout, volumeSliderParams)
+
+        volumeSliderLayout.visibility = View.GONE
     }
 }

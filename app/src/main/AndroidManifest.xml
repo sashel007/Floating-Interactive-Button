@@ -41,7 +41,9 @@
 
         <service
             android:name=".FloatingButtonService"
-            android:exported="true">
+            android:exported="true"
+            android:foregroundServiceType="mediaProjection"
+            android:enabled="true">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
