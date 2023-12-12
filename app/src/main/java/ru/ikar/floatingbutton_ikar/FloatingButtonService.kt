@@ -77,8 +77,9 @@ class FloatingButtonService : Service() {
     private lateinit var surface: Surface
     private lateinit var volumeSlider: Slider
     private lateinit var volumeSliderLayout: View
-    private lateinit var volumeSLiderGroup: Group
+    private lateinit var volumeSliderGroup: Group
     private var isVolumeSeekBarShown = false
+    private lateinit var volumeSliderButton: ImageButton
 
     companion object {
         private const val REQUEST_ENABLE_BT = 12004
@@ -510,24 +511,23 @@ class FloatingButtonService : Service() {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT
             )
-            // Получаем текущую позицию основной кнопки
-            val mainButtonX = params.x + mainButton.width
-            val mainButtonY = params.y
+
             // Устанавливаем позицию макета volumeSliderLayout
-            volumeParams.x = mainButtonX
-            volumeParams.y = mainButtonY
+            volumeParams.x = xTrackingDotsForPanel
+            volumeParams.y = yTrackingDotsForPanel
             // Обновляем ползунок согласно системным значениям громкости
             // Устанавливаем максимальное значение слайдера
-            volumeSlider.valueTo = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()
-
-            // Устанавливаем текущее значение слайдера
-            volumeSlider.value = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat()
-
-            volumeSlider.visibility = View.VISIBLE
+            volumeSlider.apply {
+                valueTo =
+                    audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()
+                // Устанавливаем текущее значение слайдера
+                value = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat()
+            }
+            volumeSliderLayout.visibility = View.VISIBLE
             updateVolumeSliderPosition()
         } else {
             // Если ползунок уже отображен, удаляем с экрана
-            volumeSlider.visibility = View.GONE
+            volumeSliderLayout.visibility = View.GONE
 //            windowManager.removeView(volumeSliderLayout)
         }
         isVolumeSeekBarShown = !isVolumeSeekBarShown
@@ -809,8 +809,9 @@ class FloatingButtonService : Service() {
     }
 
     private fun addVolumeSliderToLayout() {
-
         volumeSlider = volumeSliderLayout.findViewById(R.id.volume_slider)
+        volumeSliderButton = volumeSliderLayout.findViewById(R.id.on_off_mute_btn)
+        volumeSliderGroup = volumeSliderLayout.findViewById(R.id.volume_slider_group)
 
         volumeSlider.addOnChangeListener { slider, value, fromUser ->
             if (fromUser) {
@@ -836,8 +837,8 @@ class FloatingButtonService : Service() {
             PixelFormat.TRANSLUCENT
         )
 
-        volumeSliderParams.width = 30
-        volumeSliderParams.height = 200
+//        volumeSliderParams.width = 30
+//        volumeSliderParams.height = 200
 
         // Настройка параметров окна
         windowManager.addView(volumeSliderLayout, volumeSliderParams)
