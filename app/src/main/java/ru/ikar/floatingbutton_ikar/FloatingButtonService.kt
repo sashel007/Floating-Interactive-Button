@@ -160,7 +160,7 @@ class FloatingButtonService : Service() {
             settingsPanelLayout.findViewById(R.id.volume_panel_btn),
             settingsPanelLayout.findViewById(R.id.brightness_panel_btn),
             settingsPanelLayout.findViewById(R.id.volume_off_panel_btn),
-            settingsPanelLayout.findViewById(R.id.screenshot_panel_btn)
+//            settingsPanelLayout.findViewById(R.id.screenshot_panel_btn)
         )
 
         // Добавляем базовые кнопки (включая иконки приложений)
@@ -525,11 +525,9 @@ class FloatingButtonService : Service() {
                         animateButton(button)
                         toggleMuteVolume()
                     }
-
-                    R.id.screenshot_panel_btn -> {
-                        animateButton(button)
-                    }
-
+//                    R.id.screenshot_panel_btn -> {
+//                        animateButton(button)
+//                    }
                 }
             }
         }
@@ -666,8 +664,28 @@ class FloatingButtonService : Service() {
      * Проходим по if и проверяем, всё ли уничтожилось.
      */
     override fun onDestroy() {
+        Log.d("FloatingButtonService", "onDestroy() - начало")
         super.onDestroy()
-        windowManager.removeView(floatingButtonLayout)
+        // Удаление основного layout
+        if (::floatingButtonLayout.isInitialized) {
+            Log.d("FloatingButtonService", "Removing floatingButtonLayout")
+            windowManager.removeView(floatingButtonLayout)
+        }
+        // Удаление панели настроек
+        if (::settingsPanelLayout.isInitialized) {
+            Log.d("FloatingButtonService", "Removing settingsPanelLayout")
+            windowManager.removeView(settingsPanelLayout)
+        }
+        // Удаление ползунка громкости
+        if (::volumeSliderLayout.isInitialized) {
+            Log.d("FloatingButtonService", "Removing volumeSliderLayout")
+            windowManager.removeView(volumeSliderLayout)
+        }
+        // Удаление ползунка яркости
+        if (::brightnessSliderLayout.isInitialized) {
+            Log.d("FloatingButtonService", "Removing brightnessSliderLayout")
+            windowManager.removeView(brightnessSliderLayout)
+        }
         unregisterReceiver(reciever)
     }
 
@@ -823,6 +841,7 @@ class FloatingButtonService : Service() {
         private val actionFivePoints = "com.xbh.fivePoint"
 
         override fun onReceive(context: Context, intent: Intent) {
+            Log.d("FloatingButtonService", "BroadcastReceiver - onReceive: ${intent.action}")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(Intent(context, FloatingButtonService::class.java))
             } else {

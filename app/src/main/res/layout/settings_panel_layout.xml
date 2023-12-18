@@ -61,21 +61,21 @@
             android:layout_height="@dimen/panel_dims"
             android:background="@android:color/transparent"
             android:src="@drawable/volume_off_panel_icon"
-            app:layout_constraintBottom_toTopOf="@id/screenshot_panel_btn"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/brightness_panel_btn" />
 
-        <ImageButton
-            android:id="@+id/screenshot_panel_btn"
-            android:layout_width="@dimen/panel_dims"
-            android:layout_height="@dimen/panel_dims"
-            android:background="@android:color/transparent"
-            android:src="@drawable/screenshot_panel_icon"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/volume_off_panel_btn" />
+<!--        <ImageButton-->
+<!--            android:id="@+id/screenshot_panel_btn"-->
+<!--            android:layout_width="@dimen/panel_dims"-->
+<!--            android:layout_height="@dimen/panel_dims"-->
+<!--            android:background="@android:color/transparent"-->
+<!--            android:src="@drawable/screenshot_panel_icon"-->
+<!--            app:layout_constraintBottom_toBottomOf="parent"-->
+<!--            app:layout_constraintEnd_toEndOf="parent"-->
+<!--            app:layout_constraintStart_toStartOf="parent"-->
+<!--            app:layout_constraintTop_toBottomOf="@id/volume_off_panel_btn" />-->
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </FrameLayout>
