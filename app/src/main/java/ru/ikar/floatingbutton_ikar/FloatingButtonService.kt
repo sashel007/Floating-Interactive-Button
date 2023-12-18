@@ -72,7 +72,7 @@ class FloatingButtonService : Service() {
     private lateinit var hideButtonsRunnable: Runnable
     private var isMoving = false
     private lateinit var settingsPanelLayout: View
-    private var isPanelShown = false // состояние панели (показана/скрыта)
+    private var isSettingsPanelShown = false // состояние панели (показана/скрыта)
     private lateinit var bluetoothAdapter: BluetoothAdapter
     private lateinit var audioManager: AudioManager
     private lateinit var mediaProjection: MediaProjection
@@ -89,12 +89,12 @@ class FloatingButtonService : Service() {
     private var isMuted: Boolean = false
     private var currentVolume: Int = 0
     private lateinit var volumeOffPanelButton: ImageButton
-    private var hideSliderHandler = Handler(Looper.getMainLooper())
-    private var hideSliderRunnable = Runnable {
-        volumeSliderLayout.visibility = View.GONE
-        isVolumeSliderShown = false // Обновляем счетчик, так как теперь ползунок скрыт
-        Log.d("RUNNABLE", "slider hidden")
-    }
+//    private var hideSliderHandler = Handler(Looper.getMainLooper())
+//    private var hideSliderRunnable = Runnable {
+//        volumeSliderLayout.visibility = View.GONE
+//        isVolumeSliderShown = false // Обновляем счетчик, так как теперь ползунок скрыт
+//        Log.d("RUNNABLE", "slider hidden")
+//    }
     private lateinit var brightnessSliderLayout: View
     private lateinit var brightnessSlider: Slider
     private lateinit var brightnessSliderParams: WindowManager.LayoutParams
@@ -200,6 +200,7 @@ class FloatingButtonService : Service() {
         // Обновить состояние кнопки Блютуз
         updateBluetoothButtonState(panelButtons[1])
 
+        Log.d("IS_PANEL_SHOWN","$isSettingsPanelShown")
     }
 
 
@@ -225,6 +226,7 @@ class FloatingButtonService : Service() {
         )
         // По умолчанию скрываем панель
         settingsPanelLayout.visibility = View.GONE
+        isSettingsPanelShown = false
         windowManager.addView(settingsPanelLayout, panelParams)
     }
 
@@ -253,9 +255,9 @@ class FloatingButtonService : Service() {
                         ) < 10
                     ) {
                         toggleButtonsVisibility(buttons, mainButton)
-                        if (isPanelShown) {
+                        if (isSettingsPanelShown) {
                             settingsPanelLayout.visibility = View.GONE
-                            !isPanelShown
+                            isSettingsPanelShown = false
                         }
                         return@setOnTouchListener false
                     } else {
@@ -280,7 +282,7 @@ class FloatingButtonService : Service() {
                     }
 
                     // Обновляем позицию панели, если она отображается
-                    if (isPanelShown) {
+                    if (isSettingsPanelShown) {
                         updatePanelPosition()
                     }
 
@@ -288,6 +290,7 @@ class FloatingButtonService : Service() {
                         volumeSliderParams.x = xMiddleScreenDot
                         volumeSliderParams.y = yMiddleScreenDot + 300
                         volumeSlider.visibility = View.VISIBLE
+                        isVolumeSliderShown = true
                         windowManager.updateViewLayout(volumeSliderLayout, volumeSliderParams)
                     }
 
@@ -476,6 +479,7 @@ class FloatingButtonService : Service() {
                     R.id.additional_settings_button -> {
                         animateButton(button)
                         additionalSettingsButtonHandler()
+                        Log.d("IS_MUTED","$isMuted")
                     }
 
                     else -> {
@@ -552,8 +556,8 @@ class FloatingButtonService : Service() {
             )
 
             // Устанавливаем позицию макета volumeSliderLayout
-            volumeParams.x = xTrackingDotsForPanel
-            volumeParams.y = yTrackingDotsForPanel
+            volumeSliderParams.x = xTrackingDotsForPanel
+            volumeSliderParams.y = yTrackingDotsForPanel
             // Обновляем ползунок согласно системным значениям громкости
             // Устанавливаем максимальное значение слайдера
             volumeSlider.apply {
@@ -565,7 +569,7 @@ class FloatingButtonService : Service() {
             volumeSliderLayout.visibility = View.VISIBLE
             isVolumeSliderShown = true
             updateVolumeSliderPosition()
-            resetHideVolumeSliderTimer()
+//            resetHideVolumeSliderTimer()
         } else {
             // Если ползунок уже отображен, удаляем с экрана
             volumeSliderLayout.visibility = View.GONE
@@ -622,7 +626,7 @@ class FloatingButtonService : Service() {
         val fadeOutAnim = AnimationUtils.loadAnimation(this, R.anim.fade_out_animation)
 
         // Проверяем, отображена ли панель
-        if (!isPanelShown) {
+        if (!isSettingsPanelShown) {
             // Устанавливаем позицию и размеры панели
             val offset = convertDpToPixel(100, this)
             val layoutParams = settingsPanelLayout.layoutParams as WindowManager.LayoutParams
@@ -632,15 +636,17 @@ class FloatingButtonService : Service() {
 
             // Показываем панель и применяем анимацию появления
             settingsPanelLayout.visibility = View.VISIBLE
+            isSettingsPanelShown = true
             settingsPanelLayout.startAnimation(fadeInAnim)
         } else {
             // Применяем анимацию исчезновения и скрываем панель
             settingsPanelLayout.startAnimation(fadeOutAnim)
             settingsPanelLayout.visibility = View.GONE
+            isSettingsPanelShown = false
         }
-
-        // Переключаем состояние видимости панели
-        isPanelShown = !isPanelShown
+//
+//        // Переключаем состояние видимости панели
+//        isSettingsPanelShown = !isSettingsPanelShown
     }
 
     private fun onFloatingButtonClick(button: View) {
@@ -859,22 +865,26 @@ class FloatingButtonService : Service() {
         }
     }
 
-    private fun convertDpToPixel(dp: Int, context: Context): Int {
-        return (dp * context.resources.displayMetrics.density).toInt()
-    }
+    private fun convertDpToPixel(dp: Int, context: Context) =
+        (dp * context.resources.displayMetrics.density).toInt()
 
-    // Метод для установки уровня громкости на 0
-    private fun muteVolume() {
-        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
-    }
+
+//    // Метод для установки уровня громкости на 0
+//    private fun muteVolume() {
+//        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
+//    }
 
     private fun toggleMuteVolume() {
         if (isMuted) {
+            // Включаем звук
             audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, currentVolume, 0)
+            volumeSlider.value = currentVolume.toFloat()
             isMuted = false
         } else {
+            // Выключаем звук
             currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
             audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
+            volumeSlider.value = 0f
             isMuted = true
         }
         updateMuteButtonState()
@@ -890,31 +900,34 @@ class FloatingButtonService : Service() {
             // Устанавливаем прозрачный фон, когда звук включен
             volumeOffPanelButton.setBackgroundColor(getColor(android.R.color.transparent))
             volumeSliderButton.setImageResource(R.drawable.volume_on_icon)
+
         }
     }
-
 
     private fun addVolumeSliderToLayout() {
         volumeSlider = volumeSliderLayout.findViewById(R.id.volume_slider)
         volumeSliderButton = volumeSliderLayout.findViewById(R.id.on_off_mute_btn)
         volumeSliderGroup = volumeSliderLayout.findViewById(R.id.volume_slider_group)
 
-        // Обработчик касания для перезапуска таймера
-        volumeSliderLayout.setOnTouchListener { _, event ->
-            if (event.action == MotionEvent.ACTION_DOWN) {
-                resetHideVolumeSliderTimer()
-            }
-            true
-        }
+//        // Обработчик касания для перезапуска таймера
+//        volumeSliderLayout.setOnTouchListener { _, event ->
+//            if (event.action == MotionEvent.ACTION_DOWN) {
+//                resetHideVolumeSliderTimer()
+//            }
+//            true
+//        }
 
-        // Инициализация Handler и Runnable
-        hideSliderHandler = Handler(Looper.getMainLooper())
-        hideSliderRunnable = Runnable {
-            volumeSliderLayout.visibility = View.GONE
-        }
+        volumeSliderLayout.visibility = View.GONE
+        isVolumeSliderShown = false
+//        // Инициализация Handler и Runnable
+//        hideSliderHandler = Handler(Looper.getMainLooper())
+//        hideSliderRunnable = Runnable {
+//            volumeSliderLayout.visibility = View.GONE
+//            isVolumeSliderShown = false
+//        }
 
         // Начальный запуск таймера
-        resetHideVolumeSliderTimer()
+//        resetHideVolumeSliderTimer()
 
         volumeSlider.addOnChangeListener { slider, value, fromUser ->
             if (fromUser) {
@@ -925,15 +938,29 @@ class FloatingButtonService : Service() {
                     progress,
                     AudioManager.FLAG_SHOW_UI
                 )
-                resetHideVolumeSliderTimer()
+                isMuted = progress == 0
+                updateMuteButtonState()
+//                if (progress == 0) {
+//                    // Пользователь установил звук на 0
+//                    isMuted = true
+//                    volumeSliderButton.setImageResource(R.drawable.volume_off_icon)
+//                    volumeOffPanelButton.setBackgroundColor(getColor(R.color.bluetooth_on))
+//                } else if (isMuted) {
+//                    // Пользователь увеличил громскость с 0
+//                    isMuted = false
+//                    volumeSliderButton.setImageResource(R.drawable.volume_on_icon)
+////                    volumeOffPanelButton.setBackgroundColor(getColor(android.R.color.transparent))
+//                }
+//                resetHideVolumeSliderTimer()
             }
+//            updateMuteButtonState()
         }
 
 
         volumeSliderButton.setOnClickListener {
             Log.d("VolumeButton", "Button clicked")
             toggleMuteVolume()
-            resetHideVolumeSliderTimer()
+//            resetHideVolumeSliderTimer()
         }
 
         volumeSliderParams = WindowManager.LayoutParams(
@@ -955,6 +982,7 @@ class FloatingButtonService : Service() {
         windowManager.addView(volumeSliderLayout, volumeSliderParams)
 
         volumeSliderLayout.visibility = View.GONE
+        isVolumeSliderShown = false
     }
 
     private fun addBrightnessSliderToLayout() {
@@ -1041,20 +1069,20 @@ class FloatingButtonService : Service() {
         }
     }
 
-    private fun resetHideVolumeSliderTimer() {
-        // Проверяем, отображается ли ползунок громкости
-        if (isVolumeSliderShown) {
-            // Удаляем все предыдущие вызовы Runnable
-            hideSliderHandler.removeCallbacks(hideSliderRunnable)
-            Log.d("RUNNABLE", "runnable reset, slider is visible")
-
-            // Запускаем Runnable с задержкой в 5 секунд
-            hideSliderHandler.postDelayed(hideSliderRunnable, 5000) // 5000 миллисекунд = 5 секунд
-        } else {
-            Log.d("RUNNABLE", "runnable not reset, slider is not visible")
-        }
-
-    }
+//    private fun resetHideVolumeSliderTimer() {
+//        // Проверяем, отображается ли ползунок громкости
+//        if (isVolumeSliderShown) {
+//            // Удаляем все предыдущие вызовы Runnable
+//            hideSliderHandler.removeCallbacks(hideSliderRunnable)
+//            Log.d("RUNNABLE", "runnable reset, slider is visible")
+//
+//            // Запускаем Runnable с задержкой в 5 секунд
+//            hideSliderHandler.postDelayed(hideSliderRunnable, 5000) // 5000 миллисекунд = 5 секунд
+//        } else {
+//            Log.d("RUNNABLE", "runnable not reset, slider is not visible")
+//        }
+//
+//    }
 
     private fun setSystemBrightness(context: Context, brightnessValue: Int) {
         try {
