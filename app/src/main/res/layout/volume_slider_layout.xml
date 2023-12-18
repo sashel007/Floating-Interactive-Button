@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:background="@drawable/red_border"
+    android:background="@drawable/background_rounded"
     android:orientation="horizontal">
 
     <androidx.constraintlayout.widget.Group
@@ -14,9 +14,11 @@
 
     <ImageButton
         android:id="@+id/on_off_mute_btn"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:src="@drawable/volume_off_panel_icon"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="5dp"
+        android:background="@android:color/transparent"
+        android:src="@drawable/volume_on_icon"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@id/volume_slider"
         app:layout_constraintStart_toStartOf="parent"

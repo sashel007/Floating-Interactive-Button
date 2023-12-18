@@ -21,8 +21,12 @@ import android.media.AudioManager
 import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
+import android.net.Uri
+import android.net.wifi.WifiManager
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import android.view.LayoutInflater
@@ -78,11 +82,25 @@ class FloatingButtonService : Service() {
     private lateinit var volumeSlider: Slider
     private lateinit var volumeSliderLayout: View
     private lateinit var volumeSliderGroup: Group
-    private var isVolumeSeekBarShown = false
+    private var isVolumeSliderShown = false
     private lateinit var volumeSliderButton: ImageButton
+    private var xMiddleScreenDot: Int = 0
+    private var yMiddleScreenDot: Int = 0
+    private var isMuted: Boolean = false
+    private var currentVolume: Int = 0
+    private lateinit var volumeOffPanelButton: ImageButton
+    private var hideSliderHandler = Handler(Looper.getMainLooper())
+    private var hideSliderRunnable = Runnable {
+        volumeSliderLayout.visibility = View.GONE
+        isVolumeSliderShown = false // Обновляем счетчик, так как теперь ползунок скрыт
+        Log.d("RUNNABLE", "slider hidden")
+    }
+    private lateinit var brightnessSliderLayout: View
+    private lateinit var brightnessSlider: Slider
+    private lateinit var brightnessSliderParams: WindowManager.LayoutParams
+    private var isBrightnessSliderShown = false
 
     companion object {
-        private const val REQUEST_ENABLE_BT = 12004
         const val EXTRA_RESULT_CODE = "EXTRA_RESULT_CODE"
         const val EXTRA_RESULT_INTENT = "EXTRA_RESULT_INTENT"
     }
@@ -125,7 +143,8 @@ class FloatingButtonService : Service() {
             LayoutInflater.from(this).inflate(R.layout.volume_slider_layout, null)
         settingsPanelLayout =
             LayoutInflater.from(this).inflate(R.layout.settings_panel_layout, null)
-
+        brightnessSliderLayout =
+            LayoutInflater.from(this).inflate(R.layout.brightness_slider_layout, null)
 
         buttons = mutableListOf(
             floatingButtonLayout.findViewById(R.id.settings_button),
@@ -147,15 +166,30 @@ class FloatingButtonService : Service() {
         // Добавляем базовые кнопки (включая иконки приложений)
         addButtonsToLayout()
 
+        // Добавляем доп.панель
         addSettingsPanelToLayout()
 
+        settingsPanelLayout.findViewById<ImageButton>(R.id.volume_off_panel_btn).also { it ->
+            volumeOffPanelButton = it
+            it.setOnClickListener {
+                Log.d("volumeOffPanelButton", "Button clicked")
+                animateButton(it)
+                toggleMuteVolume()
+            }
+        }
+
         addVolumeSliderToLayout()
+
+        addBrightnessSliderToLayout()
 
         // Ставим слушатели на вспомогательные кнопки
         setListenersForButtons()
 
         // Слушатели на кнопки панели
         setListenersForPanelButtons()
+
+        // Обновить состояние кнопки Wi-Fi при создании сервиса
+        updateWifiButtonState(panelButtons[0] as ImageButton)
 
         // Применяем настройки WindowManager
         setupOverlayWindow()
@@ -168,13 +202,13 @@ class FloatingButtonService : Service() {
 
     }
 
+
     private fun updateBluetoothButtonState(button: View) {
-        val color = if (bluetoothAdapter.isEnabled) {
-            getColor(R.color.bluetooth_on)
+        if (bluetoothAdapter.isEnabled) {
+            button.setBackgroundColor(getColor(R.color.bluetooth_on))
         } else {
-            getColor(R.color.bluetooth_off)
+            button.setBackgroundColor(getColor(android.R.color.transparent))
         }
-        button.setBackgroundColor(color)
     }
 
     private fun addSettingsPanelToLayout() {
@@ -250,8 +284,11 @@ class FloatingButtonService : Service() {
                         updatePanelPosition()
                     }
 
-                    if (isVolumeSeekBarShown) {
-                        updateVolumeSliderPosition()
+                    if (isVolumeSliderShown) {
+                        volumeSliderParams.x = xMiddleScreenDot
+                        volumeSliderParams.y = yMiddleScreenDot + 300
+                        volumeSlider.visibility = View.VISIBLE
+                        windowManager.updateViewLayout(volumeSliderLayout, volumeSliderParams)
                     }
 
                     isMoving = true // Установить флаг, так как происходит перемещение
@@ -275,11 +312,8 @@ class FloatingButtonService : Service() {
     }
 
     private fun updateVolumeSliderPosition() {
-        val offset = convertDpToPixel(100, this)
-        volumeSliderParams.x = xTrackingDotsForPanel - offset
-        volumeSliderParams.y = yTrackingDotsForPanel
-        volumeSlider.visibility = View.VISIBLE
-        windowManager.updateViewLayout(volumeSliderLayout, volumeSliderParams)
+        volumeSliderParams.x = xMiddleScreenDot
+        volumeSliderParams.y = yMiddleScreenDot + 150
     }
 
     private fun registerReceiverOnService() {
@@ -441,7 +475,7 @@ class FloatingButtonService : Service() {
 
                     R.id.additional_settings_button -> {
                         animateButton(button)
-                        additionalSettingsButtonHandler(button)
+                        additionalSettingsButtonHandler()
                     }
 
                     else -> {
@@ -470,22 +504,22 @@ class FloatingButtonService : Service() {
                     R.id.bluetooth_panel_btn -> {
                         animateButton(button)
                         toggleBluetooth()
-                        updateBluetoothButtonState(it)
                     }
 
                     R.id.volume_panel_btn -> {
                         animateButton(button)
                         volumeButtonHandler()
+//                        updateWifiButtonState(button as ImageButton)
                     }
 
                     R.id.brightness_panel_btn -> {
                         animateButton(button)
+                        handleBrightnessBtn()
                     }
 
                     R.id.volume_off_panel_btn -> {
                         animateButton(button)
-                        muteVolume()
-                        updateBluetoothButtonState(it)
+                        toggleMuteVolume()
                     }
 
                     R.id.screenshot_panel_btn -> {
@@ -498,7 +532,12 @@ class FloatingButtonService : Service() {
     }
 
     private fun volumeButtonHandler() {
-        if (!isVolumeSeekBarShown) { // Условие, если ползунок еще не отображен
+        if (!isVolumeSliderShown) { // Условие, если ползунок еще не отображен
+            // Сначала проверяем, отображается ли brightnessSlider
+            if (isBrightnessSliderShown) {
+                brightnessSliderLayout.visibility = View.GONE
+                isBrightnessSliderShown = false
+            }
             // Определяем параметры макета для ползунка громкости
             val volumeParams = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -524,14 +563,15 @@ class FloatingButtonService : Service() {
                 value = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat()
             }
             volumeSliderLayout.visibility = View.VISIBLE
+            isVolumeSliderShown = true
             updateVolumeSliderPosition()
+            resetHideVolumeSliderTimer()
         } else {
             // Если ползунок уже отображен, удаляем с экрана
             volumeSliderLayout.visibility = View.GONE
+            isVolumeSliderShown = false
 //            windowManager.removeView(volumeSliderLayout)
         }
-        isVolumeSeekBarShown = !isVolumeSeekBarShown
-
     }
 
     private fun wifiBtnHandler() {
@@ -539,6 +579,22 @@ class FloatingButtonService : Service() {
         wifiIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // Добавление флага
         startActivity(wifiIntent)
     }
+
+    private fun updateWifiButtonState(button: ImageButton) {
+        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+        wifiManager?.let {
+            val isWifiEnabled = it.isWifiEnabled
+
+            if (isWifiEnabled) {
+                // Установить синий фон, если Wi-Fi включен
+                button.setBackgroundColor(getColor(R.color.bluetooth_on)) // Используйте свой синий цвет
+            } else {
+                // Установить прозрачный фон, если Wi-Fi выключен
+                button.setBackgroundColor(getColor(android.R.color.transparent))
+            }
+        }
+    }
+
 
     private fun toggleBluetooth() {
         if (bluetoothAdapter.isEnabled) {
@@ -558,7 +614,7 @@ class FloatingButtonService : Service() {
         )
     }
 
-    private fun additionalSettingsButtonHandler(button: View) {
+    private fun additionalSettingsButtonHandler() {
         // Загружаем анимацию прозрачности
         val fadeInAnim = AnimationUtils.loadAnimation(this, R.anim.fade_in_animation)
 
@@ -614,6 +670,7 @@ class FloatingButtonService : Service() {
         val homeIntent = Intent(Intent.ACTION_MAIN)
         homeIntent.addCategory(Intent.CATEGORY_HOME)
         homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        homeIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         startActivity(homeIntent)
         animateButton(button)
     }
@@ -773,14 +830,17 @@ class FloatingButtonService : Service() {
                 val screenWidth = screenSize.x
                 val screenHeight = screenSize.y
 
-                params.x = posX!! - screenWidth / 2
-                params.y = posY!! - screenHeight / 2
+                xMiddleScreenDot = screenWidth / 2
+                yMiddleScreenDot = screenHeight / 2
+
+                params.x = posX!! - xMiddleScreenDot
+                params.y = posY!! - yMiddleScreenDot
                 windowManager.updateViewLayout(floatingButtonLayout, params)
             } else if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
                 val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
                 when (state) {
                     BluetoothAdapter.STATE_OFF -> {
-                        // Bluetooth has been turned off;
+                        updateBluetoothButtonState(panelButtons[1])
                     }
 
                     BluetoothAdapter.STATE_TURNING_OFF -> {
@@ -788,7 +848,7 @@ class FloatingButtonService : Service() {
                     }
 
                     BluetoothAdapter.STATE_ON -> {
-                        // Bluetooth is on
+                        updateBluetoothButtonState(panelButtons[1])
                     }
 
                     BluetoothAdapter.STATE_TURNING_ON -> {
@@ -808,10 +868,53 @@ class FloatingButtonService : Service() {
         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
     }
 
+    private fun toggleMuteVolume() {
+        if (isMuted) {
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, currentVolume, 0)
+            isMuted = false
+        } else {
+            currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
+            isMuted = true
+        }
+        updateMuteButtonState()
+    }
+
+
+    private fun updateMuteButtonState() {
+        if (isMuted) {
+            // Устанавливаем синий фон, когда звук выключен
+            volumeOffPanelButton.setBackgroundColor(getColor(R.color.bluetooth_on))
+            volumeSliderButton.setImageResource(R.drawable.volume_off_icon)
+        } else {
+            // Устанавливаем прозрачный фон, когда звук включен
+            volumeOffPanelButton.setBackgroundColor(getColor(android.R.color.transparent))
+            volumeSliderButton.setImageResource(R.drawable.volume_on_icon)
+        }
+    }
+
+
     private fun addVolumeSliderToLayout() {
         volumeSlider = volumeSliderLayout.findViewById(R.id.volume_slider)
         volumeSliderButton = volumeSliderLayout.findViewById(R.id.on_off_mute_btn)
         volumeSliderGroup = volumeSliderLayout.findViewById(R.id.volume_slider_group)
+
+        // Обработчик касания для перезапуска таймера
+        volumeSliderLayout.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                resetHideVolumeSliderTimer()
+            }
+            true
+        }
+
+        // Инициализация Handler и Runnable
+        hideSliderHandler = Handler(Looper.getMainLooper())
+        hideSliderRunnable = Runnable {
+            volumeSliderLayout.visibility = View.GONE
+        }
+
+        // Начальный запуск таймера
+        resetHideVolumeSliderTimer()
 
         volumeSlider.addOnChangeListener { slider, value, fromUser ->
             if (fromUser) {
@@ -822,7 +925,15 @@ class FloatingButtonService : Service() {
                     progress,
                     AudioManager.FLAG_SHOW_UI
                 )
+                resetHideVolumeSliderTimer()
             }
+        }
+
+
+        volumeSliderButton.setOnClickListener {
+            Log.d("VolumeButton", "Button clicked")
+            toggleMuteVolume()
+            resetHideVolumeSliderTimer()
         }
 
         volumeSliderParams = WindowManager.LayoutParams(
@@ -837,12 +948,134 @@ class FloatingButtonService : Service() {
             PixelFormat.TRANSLUCENT
         )
 
-//        volumeSliderParams.width = 30
-//        volumeSliderParams.height = 200
+        volumeSliderParams.x = xMiddleScreenDot
+        volumeSliderParams.y = yMiddleScreenDot + 150
 
         // Настройка параметров окна
         windowManager.addView(volumeSliderLayout, volumeSliderParams)
 
         volumeSliderLayout.visibility = View.GONE
     }
+
+    private fun addBrightnessSliderToLayout() {
+        brightnessSlider = brightnessSliderLayout.findViewById(R.id.brightness_slider)
+
+        brightnessSliderParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                WindowManager.LayoutParams.TYPE_PHONE
+            },
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT
+        )
+        brightnessSliderParams.x = xMiddleScreenDot
+        brightnessSliderParams.y = yMiddleScreenDot + 150
+
+        windowManager.addView(brightnessSliderLayout, brightnessSliderParams)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (!Settings.System.canWrite(applicationContext)) {
+                val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS)
+                intent.data = Uri.parse("package:$packageName")
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+            }
+        }
+
+        // Получаем текущую яркость окна
+        val currentBrightness = WindowManager.LayoutParams().screenBrightness
+        if (currentBrightness == -1.0f) {
+            // Используем системную яркость
+            val systemBrightnessValue = Settings.System.getInt(
+                contentResolver,
+                Settings.System.SCREEN_BRIGHTNESS,
+                255
+            )
+            val sliderValue =
+                systemBrightnessValue.toFloat() / 255f // Преобразование в диапазон слайдера
+            brightnessSlider.value = sliderValue
+        } else {
+            // Используем текущую яркость окна
+            brightnessSlider.value = currentBrightness
+        }
+
+        // Слушатель изменений ползунка
+        brightnessSlider.addOnChangeListener { _, value, _ ->
+            setSystemBrightness(this@FloatingButtonService, (value * 255).toInt())
+        }
+
+        brightnessSliderLayout.also {
+            if (!isBrightnessSliderShown) {
+                Log.d("isBrightnessSliderShown", "${!isBrightnessSliderShown}")
+                it.visibility = View.GONE
+            } else {
+                it.visibility = View.VISIBLE
+            }
+        }
+    }
+
+    private fun updateWindowBrightness(brightnessValue: Float) {
+        val window = (applicationContext as Activity).window
+        val layoutParams = window.attributes
+        layoutParams.screenBrightness =
+            brightnessValue / 100.0f // Преобразование обратно в диапазон от 0.0 до 1.0
+        window.attributes = layoutParams
+    }
+
+    private fun handleBrightnessBtn() {
+        // Показать или скрыть слайдер яркости
+        if (!isBrightnessSliderShown) {
+            // Сначала проверяем, отображается ли volumeSlider
+            if (isVolumeSliderShown) {
+                volumeSliderLayout.visibility = View.GONE
+                isVolumeSliderShown = false
+            }
+            brightnessSliderLayout.visibility = View.VISIBLE
+            isBrightnessSliderShown = true
+        } else {
+            brightnessSliderLayout.visibility = View.GONE
+            isBrightnessSliderShown = false
+        }
+    }
+
+    private fun resetHideVolumeSliderTimer() {
+        // Проверяем, отображается ли ползунок громкости
+        if (isVolumeSliderShown) {
+            // Удаляем все предыдущие вызовы Runnable
+            hideSliderHandler.removeCallbacks(hideSliderRunnable)
+            Log.d("RUNNABLE", "runnable reset, slider is visible")
+
+            // Запускаем Runnable с задержкой в 5 секунд
+            hideSliderHandler.postDelayed(hideSliderRunnable, 5000) // 5000 миллисекунд = 5 секунд
+        } else {
+            Log.d("RUNNABLE", "runnable not reset, slider is not visible")
+        }
+
+    }
+
+    private fun setSystemBrightness(context: Context, brightnessValue: Int) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (Settings.System.canWrite(context)) {
+                    Settings.System.putInt(
+                        context.contentResolver,
+                        Settings.System.SCREEN_BRIGHTNESS,
+                        brightnessValue
+                    )
+                }
+            } else {
+                Settings.System.putInt(
+                    context.contentResolver,
+                    Settings.System.SCREEN_BRIGHTNESS,
+                    brightnessValue
+                )
+            }
+        } catch (e: Settings.SettingNotFoundException) {
+            e.printStackTrace()
+        }
+    }
+
 }
