@@ -259,6 +259,14 @@ class FloatingButtonService : Service() {
                             settingsPanelLayout.visibility = View.GONE
                             isSettingsPanelShown = false
                         }
+                        if (isVolumeSliderShown) {
+                            volumeSliderLayout.visibility = View.GONE
+                            isVolumeSliderShown = false
+                        }
+                        if (isBrightnessSliderShown) {
+                            brightnessSliderLayout.visibility = View.GONE
+                            isBrightnessSliderShown = false
+                        }
                         return@setOnTouchListener false
                     } else {
                         // Сохраняем и возвращаем в лямбду последнее касание.
