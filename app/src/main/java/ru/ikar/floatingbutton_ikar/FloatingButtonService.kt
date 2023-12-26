@@ -38,6 +38,7 @@ import android.view.animation.AnimationUtils
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.constraintlayout.widget.Group
 import androidx.core.app.NotificationCompat
 import com.google.android.material.slider.Slider
@@ -103,6 +104,7 @@ class FloatingButtonService : Service() {
     companion object {
         const val EXTRA_RESULT_CODE = "EXTRA_RESULT_CODE"
         const val EXTRA_RESULT_INTENT = "EXTRA_RESULT_INTENT"
+        const val navigationSettings = "com.xbh.navigation.settings"
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -469,7 +471,9 @@ class FloatingButtonService : Service() {
             button.setOnClickListener { it ->
                 when (button.id) {
                     R.id.settings_button -> {
-                        settingsButtonHandler(button)
+                        val navSetIntent = Intent(navigationSettings)
+                        sendBroadcast(navSetIntent)
+//                        settingsButtonHandler(button)
                     }
 
                     R.id.home_button -> {
@@ -845,53 +849,6 @@ class FloatingButtonService : Service() {
         // Здесь можно добавить listener для imageReader, чтобы обрабатывать захваченные изображения
     }
 
-    private val reciever: BroadcastReceiver = object : BroadcastReceiver() {
-        private val actionFivePoints = "com.xbh.fivePoint"
-
-        override fun onReceive(context: Context, intent: Intent) {
-            Log.d("FloatingButtonService", "BroadcastReceiver - onReceive: ${intent.action}")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(Intent(context, FloatingButtonService::class.java))
-            } else {
-                context.startService(Intent(context, FloatingButtonService::class.java))
-            }
-            if (intent.action == actionFivePoints) {
-                val posX: Int? = intent.extras?.getInt("PosX")
-                val posY: Int? = intent.extras?.getInt("PosY")
-
-                val screenSize = getScreenSize(context)
-                val screenWidth = screenSize.x
-                val screenHeight = screenSize.y
-
-                xMiddleScreenDot = screenWidth / 2
-                yMiddleScreenDot = screenHeight / 2
-
-                params.x = posX!! - xMiddleScreenDot
-                params.y = posY!! - yMiddleScreenDot
-                windowManager.updateViewLayout(floatingButtonLayout, params)
-            } else if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
-                val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
-                when (state) {
-                    BluetoothAdapter.STATE_OFF -> {
-                        updateBluetoothButtonState(panelButtons[1])
-                    }
-
-                    BluetoothAdapter.STATE_TURNING_OFF -> {
-                        // Bluetooth is turning off;
-                    }
-
-                    BluetoothAdapter.STATE_ON -> {
-                        updateBluetoothButtonState(panelButtons[1])
-                    }
-
-                    BluetoothAdapter.STATE_TURNING_ON -> {
-                        // Bluetooth is turning on
-                    }
-                }
-            }
-        }
-    }
-
     private fun convertDpToPixel(dp: Int, context: Context) =
         (dp * context.resources.displayMetrics.density).toInt()
 
@@ -1011,7 +968,7 @@ class FloatingButtonService : Service() {
         volumeSliderLayout.visibility = View.GONE
         isVolumeSliderShown = false
     }
-
+    
     private fun addBrightnessSliderToLayout() {
         brightnessSlider = brightnessSliderLayout.findViewById(R.id.brightness_slider)
 
@@ -1033,9 +990,10 @@ class FloatingButtonService : Service() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!Settings.System.canWrite(applicationContext)) {
-                val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS)
-                intent.data = Uri.parse("package:$packageName")
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                    data = Uri.parse("package:$packageName")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
                 startActivity(intent)
             }
         }
@@ -1072,14 +1030,6 @@ class FloatingButtonService : Service() {
         }
     }
 
-    private fun updateWindowBrightness(brightnessValue: Float) {
-        val window = (applicationContext as Activity).window
-        val layoutParams = window.attributes
-        layoutParams.screenBrightness =
-            brightnessValue / 100.0f // Преобразование обратно в диапазон от 0.0 до 1.0
-        window.attributes = layoutParams
-    }
-
     private fun handleBrightnessBtn() {
         // Показать или скрыть слайдер яркости
         if (!isBrightnessSliderShown) {
@@ -1095,21 +1045,6 @@ class FloatingButtonService : Service() {
             isBrightnessSliderShown = false
         }
     }
-
-//    private fun resetHideVolumeSliderTimer() {
-//        // Проверяем, отображается ли ползунок громкости
-//        if (isVolumeSliderShown) {
-//            // Удаляем все предыдущие вызовы Runnable
-//            hideSliderHandler.removeCallbacks(hideSliderRunnable)
-//            Log.d("RUNNABLE", "runnable reset, slider is visible")
-//
-//            // Запускаем Runnable с задержкой в 5 секунд
-//            hideSliderHandler.postDelayed(hideSliderRunnable, 5000) // 5000 миллисекунд = 5 секунд
-//        } else {
-//            Log.d("RUNNABLE", "runnable not reset, slider is not visible")
-//        }
-//
-//    }
 
     private fun setSystemBrightness(context: Context, brightnessValue: Int) {
         try {
@@ -1130,6 +1065,53 @@ class FloatingButtonService : Service() {
             }
         } catch (e: Settings.SettingNotFoundException) {
             e.printStackTrace()
+        }
+    }
+
+    private val reciever: BroadcastReceiver = object : BroadcastReceiver() {
+        private val actionFivePoints = "com.xbh.fivePoint"
+
+        override fun onReceive(context: Context, intent: Intent) {
+            Log.d("FloatingButtonService", "BroadcastReceiver - onReceive: ${intent.action}")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(Intent(context, FloatingButtonService::class.java))
+            } else {
+                context.startService(Intent(context, FloatingButtonService::class.java))
+            }
+            if (intent.action == actionFivePoints) {
+                val posX: Int? = intent.extras?.getInt("PosX")
+                val posY: Int? = intent.extras?.getInt("PosY")
+
+                val screenSize = getScreenSize(context)
+                val screenWidth = screenSize.x
+                val screenHeight = screenSize.y
+
+                xMiddleScreenDot = screenWidth / 2
+                yMiddleScreenDot = screenHeight / 2
+
+                params.x = posX!! - xMiddleScreenDot
+                params.y = posY!! - yMiddleScreenDot
+                windowManager.updateViewLayout(floatingButtonLayout, params)
+            } else if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                when (state) {
+                    BluetoothAdapter.STATE_OFF -> {
+                        updateBluetoothButtonState(panelButtons[1])
+                    }
+
+                    BluetoothAdapter.STATE_TURNING_OFF -> {
+                        // Bluetooth is turning off;
+                    }
+
+                    BluetoothAdapter.STATE_ON -> {
+                        updateBluetoothButtonState(panelButtons[1])
+                    }
+
+                    BluetoothAdapter.STATE_TURNING_ON -> {
+                        // Bluetooth is turning on
+                    }
+                }
+            }
         }
     }
 
