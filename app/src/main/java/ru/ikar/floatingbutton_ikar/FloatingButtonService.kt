@@ -90,7 +90,7 @@ class FloatingButtonService : Service() {
     private var isMuted: Boolean = false
     private var currentVolume: Int = 0
     private lateinit var volumeOffPanelButton: ImageButton
-//    private var hideSliderHandler = Handler(Looper.getMainLooper())
+    //    private var hideSliderHandler = Handler(Looper.getMainLooper())
 //    private var hideSliderRunnable = Runnable {
 //        volumeSliderLayout.visibility = View.GONE
 //        isVolumeSliderShown = false // Обновляем счетчик, так как теперь ползунок скрыт
@@ -179,6 +179,8 @@ class FloatingButtonService : Service() {
                 toggleMuteVolume()
             }
         }
+
+        createNotificationChannel("NOTIFICATION_CHANNEL_ID")
 
         addVolumeSliderToLayout()
 
@@ -699,6 +701,7 @@ class FloatingButtonService : Service() {
             windowManager.removeView(brightnessSliderLayout)
         }
         unregisterReceiver(reciever)
+//        applicationContext.stopService(Intent(this, FloatingButtonService.class::java))
     }
 
     //Обработчик кнопки "ДОМОЙ"
@@ -770,7 +773,9 @@ class FloatingButtonService : Service() {
                     .setSmallIcon(R.drawable.ic_launcher_background).build()
 
             startForeground(
-                1123124590, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+                1123124590,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
             )
         } else {
             val notification =
@@ -780,7 +785,6 @@ class FloatingButtonService : Service() {
 
             startForeground(1123124590, notification)
         }
-
 
         return START_NOT_STICKY
     }
@@ -796,7 +800,6 @@ class FloatingButtonService : Service() {
 //                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 //            notificationManager.createNotificationChannel(serviceChannel)
 //        }
-
 
 //        val notification =
 //            NotificationCompat.Builder(this, serviceChannelId).setContentTitle("FAB_Service")
@@ -820,7 +823,9 @@ class FloatingButtonService : Service() {
     private fun createNotificationChannel(channelId: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
-                channelId, "Foreground Service Channel", NotificationManager.IMPORTANCE_DEFAULT
+                channelId,
+                "Foreground Service Channel",
+                NotificationManager.IMPORTANCE_DEFAULT
             )
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(serviceChannel)
@@ -968,7 +973,7 @@ class FloatingButtonService : Service() {
         volumeSliderLayout.visibility = View.GONE
         isVolumeSliderShown = false
     }
-    
+
     private fun addBrightnessSliderToLayout() {
         brightnessSlider = brightnessSliderLayout.findViewById(R.id.brightness_slider)
 
