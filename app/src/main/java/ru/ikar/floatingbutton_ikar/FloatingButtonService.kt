@@ -105,6 +105,7 @@ class FloatingButtonService : Service() {
         const val EXTRA_RESULT_CODE = "EXTRA_RESULT_CODE"
         const val EXTRA_RESULT_INTENT = "EXTRA_RESULT_INTENT"
         const val navigationSettings = "com.xbh.navigation.settings"
+        const val serviceChannelId = "fab_service_channel"
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -180,7 +181,7 @@ class FloatingButtonService : Service() {
             }
         }
 
-        createNotificationChannel("NOTIFICATION_CHANNEL_ID")
+        createNotificationChannel(serviceChannelId)
 
         addVolumeSliderToLayout()
 
@@ -752,7 +753,6 @@ class FloatingButtonService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val serviceChannelId = "fab_service_channel"
 
         // Получение данных о захвате экрана
         val resultCode = intent?.getIntExtra(EXTRA_RESULT_CODE, Activity.RESULT_CANCELED)
@@ -768,31 +768,18 @@ class FloatingButtonService : Service() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
-                "fab_service_channel",
+                serviceChannelId,
                 "Foreground Service Channel",
                 NotificationManager.IMPORTANCE_DEFAULT
             )
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(serviceChannel)
-        }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-
-            val notification =
-                NotificationCompat.Builder(this, serviceChannelId).setContentTitle("FAB_Service")
-                    .setContentText("Сервис запущен")
-                    .setSmallIcon(R.drawable.ikar_fab_img).build()
-
-            startForeground(
-                1123124590,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
-            )
-        } else {
-            val notification =
-                NotificationCompat.Builder(this, serviceChannelId).setContentTitle("FAB_Service")
-                    .setContentText("Сервис запущен")
-                    .setSmallIcon(R.drawable.ikar_fab_img).build()
+            val notification = NotificationCompat.Builder(this, serviceChannelId)
+                .setContentTitle("FAB_Service")
+                .setContentText("Сервис запущен")
+                .setSmallIcon(R.drawable.ikar_fab_img)
+                .build()
 
             startForeground(1123124590, notification)
         }

@@ -2,6 +2,7 @@ package ru.ikar.floatingbutton_ikar.settings_actitivy
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -74,6 +75,7 @@ fun SystemAppItem(
     val appName = app.packageName
     var showDialog by remember { mutableStateOf(false) }
     val squaredSize = 40.dp
+    val context = LocalContext.current
 
     Box(contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -108,6 +110,11 @@ fun SystemAppItem(
 
                     // Обновляем иконки
                     updateAppIcons()
+                    Toast.makeText(
+                        context,
+                        "Перезапустите сервис для корректного добавления кнопки",
+                        Toast.LENGTH_SHORT
+                    ).show()
 
                     showDialog = false
                     onClose()

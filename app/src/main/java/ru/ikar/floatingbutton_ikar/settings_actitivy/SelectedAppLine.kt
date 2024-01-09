@@ -8,6 +8,7 @@ import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Build
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -60,6 +61,7 @@ fun SelectedAppLine(
     val packageManager = LocalContext.current.packageManager
     var showDialogWithButtonsIndex by remember { mutableStateOf<Int?>(null) }
     var activeDialog by remember { mutableStateOf<Int?>(null) }
+    val context = LocalContext.current
 
     Text(
         text = "Нажмите на ячейку, \nчтобы добавить/удалить:",
@@ -97,6 +99,7 @@ fun SelectedAppLine(
                         drawable.draw(canvas)
                         bitmap.asImageBitmap()
                     }
+
                     else -> null
                 }
             }
@@ -150,6 +153,11 @@ fun SelectedAppLine(
                     updateAppIcons()
                     // Закрытие диалога
                     showDialogWithButtonsIndex = null
+                    Toast.makeText(
+                        context,
+                        "Перезапустите сервис для корректного удаления кнопки",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }) {
                     Text("Удалить")
                 }
