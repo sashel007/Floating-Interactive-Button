@@ -1,5 +1,6 @@
 package ru.ikar.floatingbutton_ikar.settings_actitivy
 
+import android.app.ActivityManager
 import android.bluetooth.BluetoothAdapter
 import android.content.Context
 import android.content.Intent
@@ -30,6 +31,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -226,6 +228,8 @@ class SettingsActivity : ComponentActivity() {
             bluetoothEnableLauncher.launch(enableBtIntent)
         }
     }
+
+
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -241,6 +245,10 @@ fun SettingsScreen(
     var isFloatingButtonOn by remember { mutableStateOf(false) }
     val paddings = 20.dp
     val spacingSize = 50.dp
+
+    LaunchedEffect(key1 = context) {
+        isFloatingButtonOn = isMyServiceRunning(context, FloatingButtonService::class.java)
+    }
 
     var appIcons by remember {
         mutableStateOf(
@@ -282,4 +290,14 @@ fun SettingsScreen(
             AccessabilityButton()
         }
     }
+}
+
+fun isMyServiceRunning(context: Context, serviceClass: Class<*>): Boolean {
+    val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+    for (service in manager.getRunningServices(Integer.MAX_VALUE)) {
+        if (serviceClass.name == service.service.className) {
+            return true
+        }
+    }
+    return false
 }
