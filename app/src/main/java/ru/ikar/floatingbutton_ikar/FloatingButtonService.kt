@@ -766,11 +766,22 @@ class FloatingButtonService : Service() {
             createVirtualDisplay()
         }
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val serviceChannel = NotificationChannel(
+                "fab_service_channel",
+                "Foreground Service Channel",
+                NotificationManager.IMPORTANCE_DEFAULT
+            )
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(serviceChannel)
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+
             val notification =
                 NotificationCompat.Builder(this, serviceChannelId).setContentTitle("FAB_Service")
                     .setContentText("Сервис запущен")
-                    .setSmallIcon(R.drawable.ic_launcher_background).build()
+                    .setSmallIcon(R.drawable.ikar_fab_img).build()
 
             startForeground(
                 1123124590,
@@ -781,7 +792,7 @@ class FloatingButtonService : Service() {
             val notification =
                 NotificationCompat.Builder(this, serviceChannelId).setContentTitle("FAB_Service")
                     .setContentText("Сервис запущен")
-                    .setSmallIcon(R.drawable.ic_launcher_background).build()
+                    .setSmallIcon(R.drawable.ikar_fab_img).build()
 
             startForeground(1123124590, notification)
         }
