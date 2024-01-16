@@ -11,20 +11,28 @@
 <!--        android:layout_height="@dimen/ellipse_outer_dim"-->
 <!--        android:layout_gravity="center"-->
 <!--        android:src="@drawable/ikar_fab_img"/>-->
+<!--    <View-->
+<!--        android:id="@+id/ellipse_outer"-->
+<!--        android:layout_width="@dimen/ellipse_outer_dim"-->
+<!--        android:layout_height="@dimen/ellipse_outer_dim"-->
+<!--        android:layout_gravity="center"-->
+<!--        android:background="@drawable/ellipse_3" />-->
+
+<!--    &lt;!&ndash; Inner Circle &ndash;&gt;-->
+<!--    <View-->
+<!--        android:id="@+id/ellipse_inner"-->
+<!--        android:layout_width="@dimen/ellipse_inner_dim"-->
+<!--        android:layout_height="@dimen/ellipse_inner_dim"-->
+<!--        android:layout_gravity="center"-->
+<!--        android:background="@drawable/circle_shape" />-->
+
     <View
         android:id="@+id/ellipse_outer"
         android:layout_width="@dimen/ellipse_outer_dim"
         android:layout_height="@dimen/ellipse_outer_dim"
         android:layout_gravity="center"
-        android:background="@drawable/ellipse_3" />
-
-    <!-- Inner Circle -->
-    <View
-        android:id="@+id/ellipse_inner"
-        android:layout_width="@dimen/ellipse_inner_dim"
-        android:layout_height="@dimen/ellipse_inner_dim"
-        android:layout_gravity="center"
-        android:background="@drawable/circle_shape" />
+        android:background="@drawable/main_button_ikar"
+        android:scaleType="centerCrop"/>
 
     <ImageButton
         android:id="@+id/settings_button"

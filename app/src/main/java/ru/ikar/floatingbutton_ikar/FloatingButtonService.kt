@@ -12,7 +12,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
-import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.graphics.Point
 import android.hardware.display.DisplayManager
@@ -24,9 +23,7 @@ import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Build
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import android.view.LayoutInflater
@@ -38,7 +35,6 @@ import android.view.animation.AnimationUtils
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
-import android.widget.Toast
 import androidx.constraintlayout.widget.Group
 import androidx.core.app.NotificationCompat
 import com.google.android.material.slider.Slider
@@ -90,6 +86,7 @@ class FloatingButtonService : Service() {
     private var isMuted: Boolean = false
     private var currentVolume: Int = 0
     private lateinit var volumeOffPanelButton: ImageButton
+
     //    private var hideSliderHandler = Handler(Looper.getMainLooper())
 //    private var hideSliderRunnable = Runnable {
 //        volumeSliderLayout.visibility = View.GONE
@@ -161,7 +158,8 @@ class FloatingButtonService : Service() {
             settingsPanelLayout.findViewById(R.id.wifi_panel_btn),
             settingsPanelLayout.findViewById(R.id.bluetooth_panel_btn),
             settingsPanelLayout.findViewById(R.id.volume_panel_btn),
-            settingsPanelLayout.findViewById(R.id.brightness_panel_btn),
+            settingsPanelLayout.findViewById(R.id.browser_panel_btn),
+//            settingsPanelLayout.findViewById(R.id.brightness_panel_btn),
             settingsPanelLayout.findViewById(R.id.volume_off_panel_btn),
 //            settingsPanelLayout.findViewById(R.id.screenshot_panel_btn)
         )
@@ -185,7 +183,7 @@ class FloatingButtonService : Service() {
 
         addVolumeSliderToLayout()
 
-        addBrightnessSliderToLayout()
+//        addBrightnessSliderToLayout()
 
         // Ставим слушатели на вспомогательные кнопки
         setListenersForButtons()
@@ -205,7 +203,7 @@ class FloatingButtonService : Service() {
         // Обновить состояние кнопки Блютуз
         updateBluetoothButtonState(panelButtons[1])
 
-        Log.d("IS_PANEL_SHOWN","$isSettingsPanelShown")
+        Log.d("IS_PANEL_SHOWN", "$isSettingsPanelShown")
     }
 
 
@@ -494,7 +492,7 @@ class FloatingButtonService : Service() {
                     R.id.additional_settings_button -> {
                         animateButton(button)
                         additionalSettingsButtonHandler()
-                        Log.d("IS_MUTED","$isMuted")
+                        Log.d("IS_MUTED", "$isMuted")
                     }
 
                     else -> {
@@ -531,10 +529,19 @@ class FloatingButtonService : Service() {
 //                        updateWifiButtonState(button as ImageButton)
                     }
 
-                    R.id.brightness_panel_btn -> {
+                    R.id.browser_panel_btn -> {
                         animateButton(button)
-                        handleBrightnessBtn()
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://www.google.com"))
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // Добавление флага
+                        if (intent.resolveActivity(packageManager) != null) {
+                            startActivity(intent)
+                        }
                     }
+
+//                    R.id.brightness_panel_btn -> {
+//                        animateButton(button)
+//                        handleBrightnessBtn()
+//                    }
 
                     R.id.volume_off_panel_btn -> {
                         animateButton(button)
@@ -682,7 +689,7 @@ class FloatingButtonService : Service() {
         Log.d("FloatingButtonService", "onDestroy() - начало")
         super.onDestroy()
         // Удаление основного layout
-        if (::floatingButtonLayout.isInitialized) {
+        if (::floatingButtonLayout.isInitialized && floatingButtonLayout.isAttachedToWindow) {
             Log.d("FloatingButtonService", "Removing floatingButtonLayout")
             windowManager.removeView(floatingButtonLayout)
         }
@@ -697,12 +704,15 @@ class FloatingButtonService : Service() {
             windowManager.removeView(volumeSliderLayout)
         }
         // Удаление ползунка яркости
-        if (::brightnessSliderLayout.isInitialized) {
-            Log.d("FloatingButtonService", "Removing brightnessSliderLayout")
-            windowManager.removeView(brightnessSliderLayout)
-        }
-        unregisterReceiver(reciever)
+//        if (::brightnessSliderLayout.isInitialized) {
+//            Log.d("FloatingButtonService", "Removing brightnessSliderLayout")
+//            windowManager.removeView(brightnessSliderLayout)
+//        }
+        try {
+            unregisterReceiver(reciever)
+        } catch (e: IllegalArgumentException) {
 //        applicationContext.stopService(Intent(this, FloatingButtonService.class::java))
+        }
     }
 
     //Обработчик кнопки "ДОМОЙ"
