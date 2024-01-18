@@ -87,7 +87,7 @@ class FloatingButtonService : Service() {
     private var currentVolume: Int = 0
     private lateinit var volumeOffPanelButton: ImageButton
 
-    //    private var hideSliderHandler = Handler(Looper.getMainLooper())
+//    private var hideSliderHandler = Handler(Looper.getMainLooper())
 //    private var hideSliderRunnable = Runnable {
 //        volumeSliderLayout.visibility = View.GONE
 //        isVolumeSliderShown = false // Обновляем счетчик, так как теперь ползунок скрыт
@@ -122,14 +122,14 @@ class FloatingButtonService : Service() {
 
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
 
-//        // Инициализация
-//        bluetoothEnableLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-//            if (result.resultCode == Activity.RESULT_OK) {
-//                // Пользователь согласился включить Bluetooth
-//            } else {
-//                // Пользователь отказался включать Bluetooth
-//            }
-//        }
+    //        // Инициализация
+    //        bluetoothEnableLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+    //            if (result.resultCode == Activity.RESULT_OK) {
+    //                // Пользователь согласился включить Bluetooth
+    //            } else {
+    //                // Пользователь отказался включать Bluetooth
+    //            }
+    //        }
 
         // Инициализация AudioManager
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
