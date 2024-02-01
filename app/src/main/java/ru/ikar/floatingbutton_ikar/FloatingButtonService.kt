@@ -12,20 +12,28 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Point
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
 import android.media.AudioManager
+import android.media.Image
 import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.Surface
@@ -35,9 +43,14 @@ import android.view.animation.AnimationUtils
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.Magnifier
+import androidx.annotation.RequiresApi
 import androidx.constraintlayout.widget.Group
 import androidx.core.app.NotificationCompat
 import com.google.android.material.slider.Slider
+import ru.ikar.floatingbutton_ikar.projector.Projector
+import java.nio.ByteBuffer
+import kotlin.experimental.and
 import kotlin.math.abs
 
 
@@ -86,17 +99,14 @@ class FloatingButtonService : Service() {
     private var isMuted: Boolean = false
     private var currentVolume: Int = 0
     private lateinit var volumeOffPanelButton: ImageButton
-
-    //    private var hideSliderHandler = Handler(Looper.getMainLooper())
-//    private var hideSliderRunnable = Runnable {
-//        volumeSliderLayout.visibility = View.GONE
-//        isVolumeSliderShown = false // Обновляем счетчик, так как теперь ползунок скрыт
-//        Log.d("RUNNABLE", "slider hidden")
-//    }
+    private lateinit var magnifierViewLayout: View
+    private lateinit var magnifierViewParams: WindowManager.LayoutParams
+    private lateinit var magnifierImageView: ImageView
     private lateinit var brightnessSliderLayout: View
     private lateinit var brightnessSlider: Slider
     private lateinit var brightnessSliderParams: WindowManager.LayoutParams
     private var isBrightnessSliderShown = false
+    private lateinit var projector: Projector
 
     companion object {
         const val EXTRA_RESULT_CODE = "EXTRA_RESULT_CODE"
@@ -107,6 +117,7 @@ class FloatingButtonService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    @RequiresApi(Build.VERSION_CODES.P)
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate() {
         super.onCreate()
@@ -134,6 +145,8 @@ class FloatingButtonService : Service() {
         // Инициализация AudioManager
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
+//        createVirtualDisplay()
+
         // инфлейтим макет кнопки (floating button).
         floatingButtonLayout =
             LayoutInflater.from(this).inflate(R.layout.floating_button_layout, null)
@@ -151,8 +164,13 @@ class FloatingButtonService : Service() {
             floatingButtonLayout.findViewById(R.id.additional_settings_button),
             floatingButtonLayout.findViewById(R.id.back_button),
             floatingButtonLayout.findViewById(R.id.home_button),
-            floatingButtonLayout.findViewById(R.id.show_all_running_apps_button)
+            floatingButtonLayout.findViewById(R.id.show_all_running_apps_button),
+            floatingButtonLayout.findViewById(R.id.magnifier_button)
         )
+
+        projector = Projector(this)
+
+        createAndAddMagnifierView()
 
         panelButtons = listOf(
             settingsPanelLayout.findViewById(R.id.wifi_panel_btn),
@@ -161,6 +179,7 @@ class FloatingButtonService : Service() {
             settingsPanelLayout.findViewById(R.id.browser_panel_btn),
 //            settingsPanelLayout.findViewById(R.id.brightness_panel_btn),
             settingsPanelLayout.findViewById(R.id.volume_off_panel_btn),
+            settingsPanelLayout.findViewById(R.id.projector_panel_btn)
 //            settingsPanelLayout.findViewById(R.id.screenshot_panel_btn)
         )
 
@@ -204,6 +223,38 @@ class FloatingButtonService : Service() {
         updateBluetoothButtonState(panelButtons[1])
 
         Log.d("IS_PANEL_SHOWN", "$isSettingsPanelShown")
+    }
+
+    private fun createAndAddMagnifierView() {
+        magnifierViewLayout =
+            LayoutInflater.from(this).inflate(R.layout.magnifier_view, null) as FrameLayout
+        magnifierImageView = magnifierViewLayout.findViewById(R.id.magnifier_imageview)
+        magnifierImageView.scaleType = ImageView.ScaleType.FIT_CENTER
+
+        magnifierViewParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                WindowManager.LayoutParams.TYPE_PHONE
+            },
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            this.x = 0
+            this.y = 0
+        }
+
+        windowManager.addView(magnifierViewLayout, magnifierViewParams)
+
+        //Делаем Magnifier View изначально невидимой
+        magnifierViewLayout.apply {
+            visibility = View.GONE
+            isClickable = false
+            isFocusable = false
+        }
     }
 
 
@@ -467,6 +518,7 @@ class FloatingButtonService : Service() {
      * Обработаем логику доп.кнопок при итерировании по списку кнопок.
      */
 
+    @RequiresApi(Build.VERSION_CODES.P)
     private fun setListenersForButtons() {
         for (button in buttons) {
             button.setOnClickListener { it ->
@@ -495,6 +547,11 @@ class FloatingButtonService : Service() {
                         Log.d("IS_MUTED", "$isMuted")
                     }
 
+                    R.id.magnifier_button -> {
+                        animateButton(button)
+                        magnifierButtonHandler()
+                    }
+
                     else -> {
                         // Если кнопка не является одной из базовых, считаем ее кнопкой-иконкой приложения
                         val launchIntent =
@@ -504,6 +561,45 @@ class FloatingButtonService : Service() {
                     }
 
                 }
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.P)
+    private fun magnifierButtonHandler() {
+        // Переключаем видимость magnifierView
+        if (magnifierViewLayout.visibility == View.GONE) {
+            magnifierViewLayout.visibility = View.VISIBLE
+            magnifierViewLayout.isClickable = true
+            magnifierViewLayout.isFocusable = true
+        } else {
+            magnifierViewLayout.visibility = View.GONE
+            magnifierViewLayout.isClickable = false
+            magnifierViewLayout.isFocusable = false
+        }
+
+        val magnifier = Magnifier.Builder(magnifierViewLayout)
+            .setSize(200, 200)
+            .setInitialZoom(2.0f)
+            .build()
+        Log.d("TRACK_", "Создан $magnifier")
+
+        magnifierViewLayout.setOnTouchListener { view, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                    // Показываем Magnifier
+                    magnifier.show(event.rawX, event.rawY)
+                    true
+                }
+
+                MotionEvent.ACTION_UP -> {
+                    view.performClick()
+                    // Прячем Magnifier
+                    magnifier.dismiss()
+                    true
+                }
+
+                else -> false
             }
         }
     }
@@ -546,6 +642,11 @@ class FloatingButtonService : Service() {
                     R.id.volume_off_panel_btn -> {
                         animateButton(button)
                         toggleMuteVolume()
+                    }
+
+                    R.id.projector_panel_btn -> {
+                        animateButton(button)
+                        projector.show()
                     }
 //                    R.id.screenshot_panel_btn -> {
 //                        animateButton(button)
@@ -703,6 +804,11 @@ class FloatingButtonService : Service() {
             Log.d("FloatingButtonService", "Removing volumeSliderLayout")
             windowManager.removeView(volumeSliderLayout)
         }
+        // Удаление MagnifierView
+        if (::magnifierViewLayout.isInitialized) {
+            windowManager.removeView(magnifierViewLayout)
+        }
+        projector.dismiss()
         // Удаление ползунка яркости
 //        if (::brightnessSliderLayout.isInitialized) {
 //            Log.d("FloatingButtonService", "Removing brightnessSliderLayout")
@@ -762,19 +868,15 @@ class FloatingButtonService : Service() {
         return size
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-
         // Получение данных о захвате экрана
         val resultCode = intent?.getIntExtra(EXTRA_RESULT_CODE, Activity.RESULT_CANCELED)
         val resultData = intent?.getParcelableExtra<Intent>(EXTRA_RESULT_INTENT)
-
-        if (resultCode != null && resultData != null && resultCode == Activity.RESULT_OK) {
-            val mediaProjectionManager =
-                getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-            mediaProjection = mediaProjectionManager.getMediaProjection(resultCode, resultData)
-
-            createVirtualDisplay()
-        }
+        Log.d(
+            "FloatingButtonService",
+            "onStartCommand: resultCode: $resultCode, resultData: $resultData"
+        )
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
@@ -791,11 +893,26 @@ class FloatingButtonService : Service() {
                 .setSmallIcon(R.drawable.ikar_fab_img)
                 .build()
 
-            startForeground(1123124590, notification)
+            // Запуск сервиса в переднем плане с указанием типа FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+            startForeground(
+                1123124590,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+            )
         }
 
-        return START_NOT_STICKY
+        if (resultCode != null && resultData != null && resultCode == Activity.RESULT_OK) {
+            // Инициализация mediaProjection
+            val mediaProjectionManager =
+                getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+            mediaProjection = mediaProjectionManager.getMediaProjection(resultCode, resultData)
+
+//            createVirtualDisplay()
+        }
+
+        return START_STICKY
     }
+
 
 //        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 //            val serviceChannel = NotificationChannel(
@@ -840,27 +957,71 @@ class FloatingButtonService : Service() {
         }
     }
 
-    private fun createVirtualDisplay() {
-        val displayMetrics = resources.displayMetrics
-        val width = displayMetrics.widthPixels
-        val height = displayMetrics.heightPixels
-
-        imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
-        surface = imageReader.surface
-
-        virtualDisplay = mediaProjection.createVirtualDisplay(
-            "FloatingButtonService",
-            width,
-            height,
-            displayMetrics.densityDpi,
-            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-            surface,
-            null,
-            null
-        )
-
-        // Здесь можно добавить listener для imageReader, чтобы обрабатывать захваченные изображения
-    }
+//    private fun createVirtualDisplay() {
+//        Log.d("TRACK_", "Заход в createVirtualDisplay")
+//        val displayMetrics = resources.displayMetrics
+//        val width = displayMetrics.widthPixels
+//        val height = displayMetrics.heightPixels
+//
+//        imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
+//        surface = imageReader.surface
+//
+//        virtualDisplay = mediaProjection.createVirtualDisplay(
+//            "FloatingButtonService",
+//            width,
+//            height,
+//            displayMetrics.densityDpi,
+//            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+//            surface,
+//            null,
+//            null
+//        )
+//
+//        // Установка слушателя на imageReader
+//        val handler = Handler(Looper.getMainLooper())
+//
+//        imageReader.setOnImageAvailableListener({ reader ->
+//            val image = reader.acquireLatestImage()
+//            val planes = image.planes
+//            val buffer = planes[0].buffer
+//            val pixelStride = planes[0].pixelStride
+//            val rowStride = planes[0].rowStride
+//            val rowPadding = rowStride - pixelStride * image.width
+//            val bitmapWidth = image.width + rowPadding / pixelStride
+//
+//            // Создадим Bitmap с размерами ImageView
+//            val bitmap = Bitmap.createBitmap(
+//                magnifierImageView.width,
+//                magnifierImageView.height,
+//                Bitmap.Config.ARGB_8888
+//            )
+//            Log.d("BitmapSize", "Bitmap Width: ${bitmap.width}, Height: ${bitmap.height}")
+//
+//            buffer.rewind() // Сброс позиции буфера
+//            val data = ByteArray(buffer.capacity())
+//            buffer.get(data) // Копирование данных из буфера в массив байтов
+//
+//            // Заполнение Bitmap
+//            // Итерация по строкам и столбцам изображения
+//            for (y in 0 until image.height) {
+//                for (x in 0 until image.width) {
+//                    val pixelIndex = y * rowStride + x * pixelStride
+//                    val r = data[pixelIndex].toInt() and 0xFF
+//                    val g = data[pixelIndex + 1].toInt() and 0xFF
+//                    val b = data[pixelIndex + 2].toInt() and 0xFF
+//                    val a = data[pixelIndex + 3].toInt() and 0xFF
+//
+//                    val color = Color.argb(a, r, g, b)
+//                    bitmap.setPixel(x, y, color)
+//                }
+//            }
+//
+//            magnifierImageView.apply {
+//                setImageBitmap(bitmap)
+//            }
+//            image?.close()
+//        }, handler)
+//    }
 
     private fun convertDpToPixel(dp: Int, context: Context) =
         (dp * context.resources.displayMetrics.density).toInt()

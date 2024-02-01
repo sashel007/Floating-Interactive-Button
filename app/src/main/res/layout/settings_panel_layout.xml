@@ -72,10 +72,21 @@
             android:layout_height="@dimen/panel_dims"
             android:background="@android:color/transparent"
             android:src="@drawable/volume_off_panel_icon"
-            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintBottom_toBottomOf="@id/projector_panel_btn"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/browser_panel_btn" />
+
+        <ImageButton
+            android:id="@+id/projector_panel_btn"
+            android:layout_width="@dimen/panel_dims"
+            android:layout_height="@dimen/panel_dims"
+            android:background="@android:color/transparent"
+            android:src="@drawable/projector_icon"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/volume_off_panel_btn" />
 
         <!--        <ImageButton-->
         <!--            android:id="@+id/screenshot_panel_btn"-->

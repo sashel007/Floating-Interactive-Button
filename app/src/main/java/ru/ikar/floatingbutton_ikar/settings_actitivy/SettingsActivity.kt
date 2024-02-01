@@ -10,6 +10,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
+import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -54,6 +55,8 @@ class SettingsActivity : ComponentActivity() {
 
     private lateinit var bluetoothEnableLauncher: ActivityResultLauncher<Intent>
 
+    private val requestScreenCapture = 1002
+
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -85,6 +88,12 @@ class SettingsActivity : ComponentActivity() {
             // Если разрешение не предоставлено, предложите пользователю предоставить его
             requestAccessibilityPermission()
         }
+
+        // Разрешение на захват экрана
+//        val mediaProjectionManager =
+//            getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+//        val captureIntent = mediaProjectionManager.createScreenCaptureIntent()
+//        startActivityForResult(captureIntent, requestScreenCapture)
 
         bluetoothEnableLauncher = registerForActivityResult(
             ActivityResultContracts.StartActivityForResult()
@@ -137,6 +146,15 @@ class SettingsActivity : ComponentActivity() {
                     Toast.LENGTH_SHORT
                 ).show()
             }
+        }
+        if (requestCode == requestScreenCapture && resultCode == RESULT_OK && data != null) {
+            Log.d("_SettingsActivity_", "Screen capture resultCode: $resultCode")
+            // Разрешение на захват экрана получено, можно передать данные в сервис
+            val serviceIntent = Intent(this, FloatingButtonService::class.java).apply {
+                putExtra(FloatingButtonService.EXTRA_RESULT_CODE, resultCode)
+                putExtra(FloatingButtonService.EXTRA_RESULT_INTENT, data)
+            }
+            startService(serviceIntent)
         }
     }
 
