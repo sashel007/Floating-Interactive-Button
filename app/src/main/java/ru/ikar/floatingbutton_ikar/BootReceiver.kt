@@ -3,6 +3,7 @@ package ru.ikar.floatingbutton_ikar
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import ru.ikar.floatingbutton_ikar.service.FloatingButtonService
 
 // Извлекаем и обрабатываем сообщения бродкаста (интенты) от системы и сторонних приложений.
 class BootReceiver : BroadcastReceiver() {
