@@ -6,13 +6,13 @@ import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.view.View
 import android.view.WindowManager
-import android.widget.FrameLayout
 import com.google.android.material.slider.Slider
 import ru.ikar.floatingbutton_ikar.R
 import ru.ikar.floatingbutton_ikar.buttons.panelbutton.ProjectorPanelButton
 import ru.ikar.floatingbutton_ikar.projector.Projector
 import ru.ikar.floatingbutton_ikar.service.FloatingButtonService
 import ru.ikar.floatingbutton_ikar.service.MuteStateListener
+import ru.ikar.floatingbutton_ikar.service.WifiStateUpdater
 import ru.ikar.floatingbutton_ikar.service.buttons.panelbutton.BluetoothPanelButton
 import ru.ikar.floatingbutton_ikar.service.buttons.panelbutton.BrowserPanelButton
 import ru.ikar.floatingbutton_ikar.service.buttons.panelbutton.VolumeOffPanelButton
@@ -20,7 +20,7 @@ import ru.ikar.floatingbutton_ikar.service.buttons.panelbutton.VolumePanelButton
 import ru.ikar.floatingbutton_ikar.service.buttons.panelbutton.WifiPanelButton
 
 class PanelButtonManager(
-    private val panelButtons: List<View>,
+    val panelButtons: List<View>,
     context: Context,
     bluetoothAdapter: BluetoothAdapter,
     packageManager: PackageManager,
@@ -31,18 +31,22 @@ class PanelButtonManager(
     volumeSlider: Slider,
     currentVolume: Int,
     projector: Projector,
-    brightnessSliderLayout: FrameLayout,
+    brightnessSliderLayout: View,
     isBrightnessSliderShown: Boolean,
     isVolumeSliderShown: Boolean,
     updateVolumeSliderPosition: () -> Unit,
-    volumeSliderLayout: FrameLayout,
+    volumeSliderLayout: View,
     volumeSliderParams: WindowManager.LayoutParams,
     xTrackingDotsForPanel: Int,
-    yTrackingDotsForPanel: Int
+    yTrackingDotsForPanel: Int,
+    stateUpdater: WifiStateUpdater,
+    wifiPanelButtonView: View,
+    bluetoothPanelButtonView: View
 ) {
-    private val wifiPanelButton = WifiPanelButton(context)
-    private val bluetoothPanelButton = BluetoothPanelButton(context, bluetoothAdapter)
-    private val volumePanelButton = VolumePanelButton(
+
+    val wifiPanelButton = WifiPanelButton(context, wifiPanelButtonView, stateUpdater)
+    val bluetoothPanelButton = BluetoothPanelButton(context, bluetoothAdapter, bluetoothPanelButtonView)
+    val volumePanelButton = VolumePanelButton(
         context,
         isVolumeSliderShown,
         isBrightnessSliderShown,
@@ -55,8 +59,8 @@ class PanelButtonManager(
         volumeSliderLayout,
         updateVolumeSliderPosition
     )
-    private val browserPanelButton = BrowserPanelButton(context, packageManager)
-    private val volumeOffPanelButton = VolumeOffPanelButton(
+    val browserPanelButton = BrowserPanelButton(context, packageManager)
+    val volumeOffPanelButton = VolumeOffPanelButton(
         context,
         muteStateListener,
         floatingButtonService,
@@ -67,7 +71,7 @@ class PanelButtonManager(
     )
     private val projectorPanelButton = ProjectorPanelButton(context, projector)
 
-    private fun setListenersForPanelButtons() {
+    fun setListenersForPanelButtons() {
         for (button in panelButtons) {
             button.setOnClickListener {
                 when (button.id) {

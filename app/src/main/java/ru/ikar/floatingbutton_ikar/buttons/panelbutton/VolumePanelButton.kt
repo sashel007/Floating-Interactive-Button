@@ -13,13 +13,13 @@ class VolumePanelButton(
     private val context: Context,
     private var isVolumeSliderShown: Boolean,
     private var isBrightnessSliderShown: Boolean,
-    private val brightnessSliderLayout: FrameLayout,
+    private val brightnessSliderLayout: View,
     private var xTrackingDotsForPanel: Int,
     private var yTrackingDotsForPanel: Int,
     private val volumeSliderParams: WindowManager.LayoutParams,
     private val volumeSlider: Slider,
     private val audioManager: AudioManager,
-    private val volumeSliderLayout: FrameLayout,
+    private val volumeSliderLayout: View,
     private val updateVolumeSliderPosition: () -> Unit
 ) : PanelButton(context) {
 
