@@ -1,6 +1,5 @@
 <resources>
     <string name="app_name">Кнопка IKAR</string>
     <string name="floating_button_image">Плаваюшая кнопка</string>
-    <string name="service_label">GlobalActionService</string>
     <string name="accessibility_service_description">accessibility_service_description</string>
 </resources>

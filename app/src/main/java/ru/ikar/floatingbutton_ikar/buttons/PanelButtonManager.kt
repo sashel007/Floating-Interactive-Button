@@ -12,6 +12,7 @@ import ru.ikar.floatingbutton_ikar.buttons.panelbutton.ProjectorPanelButton
 import ru.ikar.floatingbutton_ikar.projector.Projector
 import ru.ikar.floatingbutton_ikar.service.FloatingButtonService
 import ru.ikar.floatingbutton_ikar.service.MuteStateListener
+import ru.ikar.floatingbutton_ikar.service.VolumeControllerListener
 import ru.ikar.floatingbutton_ikar.service.WifiStateUpdater
 import ru.ikar.floatingbutton_ikar.service.buttons.panelbutton.BluetoothPanelButton
 import ru.ikar.floatingbutton_ikar.service.buttons.panelbutton.BrowserPanelButton
@@ -25,50 +26,18 @@ class PanelButtonManager(
     bluetoothAdapter: BluetoothAdapter,
     packageManager: PackageManager,
     muteStateListener: MuteStateListener,
-    audioManager: AudioManager,
-    floatingButtonService: FloatingButtonService,
-    isMuted: Boolean,
-    volumeSlider: Slider,
-    currentVolume: Int,
     projector: Projector,
-    brightnessSliderLayout: View,
-    isBrightnessSliderShown: Boolean,
-    isVolumeSliderShown: Boolean,
-    updateVolumeSliderPosition: () -> Unit,
-    volumeSliderLayout: View,
-    volumeSliderParams: WindowManager.LayoutParams,
-    xTrackingDotsForPanel: Int,
-    yTrackingDotsForPanel: Int,
     stateUpdater: WifiStateUpdater,
     wifiPanelButtonView: View,
-    bluetoothPanelButtonView: View
+    bluetoothPanelButtonView: View,
+    volumeControllerListener: VolumeControllerListener
 ) {
 
     val wifiPanelButton = WifiPanelButton(context, wifiPanelButtonView, stateUpdater)
     val bluetoothPanelButton = BluetoothPanelButton(context, bluetoothAdapter, bluetoothPanelButtonView)
-    val volumePanelButton = VolumePanelButton(
-        context,
-        isVolumeSliderShown,
-        isBrightnessSliderShown,
-        brightnessSliderLayout,
-        xTrackingDotsForPanel,
-        yTrackingDotsForPanel,
-        volumeSliderParams,
-        volumeSlider,
-        audioManager,
-        volumeSliderLayout,
-        updateVolumeSliderPosition
-    )
-    val browserPanelButton = BrowserPanelButton(context, packageManager)
-    val volumeOffPanelButton = VolumeOffPanelButton(
-        context,
-        muteStateListener,
-        floatingButtonService,
-        isMuted,
-        audioManager,
-        volumeSlider,
-        currentVolume
-    )
+    private val volumePanelButton = VolumePanelButton(context,volumeControllerListener)
+    private val browserPanelButton = BrowserPanelButton(context, packageManager)
+    private val volumeOffPanelButton = VolumeOffPanelButton(context,muteStateListener)
     private val projectorPanelButton = ProjectorPanelButton(context, projector)
 
     fun setListenersForPanelButtons() {
@@ -102,11 +71,6 @@ class PanelButtonManager(
                             animateButton(button)
                         }
                     }
-
-//                    R.id.brightness_panel_btn -> {
-//                        animateButton(button)
-//                        handleBrightnessBtn()
-//                    }
 
                     R.id.volume_off_panel_btn -> button.setOnClickListener {
                         volumeOffPanelButton.apply {

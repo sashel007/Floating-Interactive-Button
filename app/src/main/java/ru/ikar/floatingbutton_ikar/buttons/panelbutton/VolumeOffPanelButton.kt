@@ -10,27 +10,25 @@ import ru.ikar.floatingbutton_ikar.service.MuteStateListener
 class VolumeOffPanelButton(
     private val context: Context,
     private val muteListener: MuteStateListener,
-    private val floatingButtonService: FloatingButtonService,
-    private var isMuted: Boolean,
-    private val audioManager: AudioManager,
-    private val volumeSlider: Slider,
-    private var currentVolume: Int
 ) : PanelButton(context) {
 
     override fun onClick() {
-        if (isMuted) {
+        if (muteListener.isMuted()) {
+            muteListener.onMusic()
             // Включаем звук
-            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, currentVolume, 0)
-            volumeSlider.value = currentVolume.toFloat()
-            isMuted = false
+//            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, currentVolume, 0)
+//            volumeSlider.value = currentVolume.toFloat()
+//            isMuted = false
+//            muteListener.updateMuteButtonState()
         } else {
             // Выключаем звук
-            currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
-            volumeSlider.value = 0f
-            isMuted = true
+            muteListener.offMusic()
+//            currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+//            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
+//            volumeSlider.value = 0f
+//            isMuted = true
+//            muteListener.updateMuteButtonState()
         }
-        floatingButtonService.updateMuteButtonState()
     }
 
     override fun animateButton(button: View) {
