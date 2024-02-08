@@ -47,12 +47,9 @@ import androidx.compose.ui.window.Dialog
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun SelectedAppLine(
-    appIcons: List<ImageBitmap>,
     apps: (context: Context) -> List<AppInfo>,
     sharedPreferences: SharedPreferences,
-    updateAppIcons: () -> Unit,
-    stopService: () -> Unit,
-    startService: () -> Unit
+    updateAppIcons: () -> Unit
 ) {
     val spacerSize = 15.dp
     val boxSize = 50.dp
@@ -64,10 +61,11 @@ fun SelectedAppLine(
     val context = LocalContext.current
 
     Text(
-        text = "Нажмите на ячейку, \nчтобы добавить/удалить:",
+        text = "Нажмите на ячейку, \nчтобы добавить/удалить приложение:",
         fontWeight = FontWeight.Bold,
         textAlign = TextAlign.Center
     )
+
     Spacer(modifier = Modifier.size(spacerSize))
 
     Row(
@@ -99,7 +97,6 @@ fun SelectedAppLine(
                         drawable.draw(canvas)
                         bitmap.asImageBitmap()
                     }
-
                     else -> null
                 }
             }

@@ -43,26 +43,29 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import ru.ikar.floatingbutton_ikar.service.FloatingButtonService
+import ru.ikar.floatingbutton_ikar.sharedpreference.SharedPrefHandler
 
 class SettingsActivity : ComponentActivity() {
 
     private val overlayPermissionReqCode = 1001  // ваш код запроса для этого разрешения
-    private lateinit var sharedPreferences: SharedPreferences
-
+    private val selectedLineSharedPrefName = "app_package_names"
+    private val buttonManagerSharedPrefName = "button_manager_names"
+    private lateinit var selectedLineSharedPrefObj: SharedPrefHandler
+    private lateinit var selectedLineSharedPref: SharedPreferences
+    private lateinit var buttonManagerSharedPrefObj: SharedPrefHandler
+    private lateinit var buttonManagerSharedPref: SharedPreferences
     private val accessibilityServiceIntent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
     private lateinit var accessibilityPermissionLauncher: ActivityResultLauncher<Intent>
-
     private lateinit var bluetoothEnableLauncher: ActivityResultLauncher<Intent>
-
     private val requestScreenCapture = 1002
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        sharedPreferences = getSharedPreferences("app_package_names", Context.MODE_PRIVATE)
-        val keys = listOf(
-            "package_name_key_1", "package_name_key_2", "package_name_key_3", "package_name_key_4"
-        )
+        selectedLineSharedPrefObj = SharedPrefHandler(this, selectedLineSharedPrefName)
+        buttonManagerSharedPrefObj = SharedPrefHandler(this, buttonManagerSharedPrefName)
+        selectedLineSharedPref = selectedLineSharedPrefObj.sharedPref
+        buttonManagerSharedPref = buttonManagerSharedPrefObj.sharedPref
 
         // Инициализация лаунчера для запроса разрешения на использование службы доступности
         accessibilityPermissionLauncher = registerForActivityResult(
@@ -111,13 +114,11 @@ class SettingsActivity : ComponentActivity() {
             // Отображаем экран настроек
             SettingsScreen(
                 getAllApps = { context -> getAllApps(context) },
-                sharedPreferences = sharedPreferences,
-                getAppIconsFromKeys = { context -> getAppIconsFromKeys(context, keys) },
-                stopService = { stopService() },
-                startService = { startFloatingButtonService() }
+                selectedLineSharedPref = selectedLineSharedPref,
+                buttonManagerSharedPref = buttonManagerSharedPref,
+                getAppIconsFromKeys = { context -> getAppIconsFromKeys(context, selectedLineSharedPrefObj.keys) }
             )
         }
-        logSharedPreferencesContents(sharedPreferences)
 
         // Проверка разрешения на отображение поверх других приложений.
         if (!Settings.canDrawOverlays(this)) {
@@ -216,7 +217,7 @@ class SettingsActivity : ComponentActivity() {
         val pm = context.packageManager
 
         return keys.mapNotNull { key ->
-            val packageName = sharedPreferences.getString(key, null)
+            val packageName = selectedLineSharedPrefObj.getSharedPrefValue(key, null)
             if (packageName != null) {
                 try {
                     val appInfo = pm.getApplicationInfo(packageName, 0)
@@ -231,13 +232,6 @@ class SettingsActivity : ComponentActivity() {
         }
     }
 
-    private fun logSharedPreferencesContents(sharedPreferences: SharedPreferences) {
-        val allEntries = sharedPreferences.all
-        for ((key, value) in allEntries) {
-            Log.d("SharedPreferences__", key + ": " + value.toString())
-        }
-    }
-
     private fun checkAndRequestBluetoothEnable() {
         val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
         if (bluetoothAdapter != null && !bluetoothAdapter.isEnabled) {
@@ -245,22 +239,19 @@ class SettingsActivity : ComponentActivity() {
             bluetoothEnableLauncher.launch(enableBtIntent)
         }
     }
-
-
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun SettingsScreen(
     getAllApps: (context: Context) -> List<AppInfo>,
-    sharedPreferences: SharedPreferences,
-    getAppIconsFromKeys: (context: Context) -> List<ImageBitmap>,
-    stopService: () -> Unit,
-    startService: () -> Unit
+    selectedLineSharedPref: SharedPreferences,
+    buttonManagerSharedPref: SharedPreferences,
+    getAppIconsFromKeys: (context: Context) -> List<ImageBitmap>
 ) {
     val context = LocalContext.current
     var isFloatingButtonOn by remember { mutableStateOf(false) }
-    val paddings = 20.dp
+    val paddings = 8.dp
     val spacingSize = 50.dp
 
     LaunchedEffect(key1 = context) {
@@ -281,17 +272,14 @@ fun SettingsScreen(
             modifier = Modifier.padding(paddings),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            ButtonsManagerLine()
+            ButtonsManagerLine(buttonManagerSharedPref)
 
             Spacer(modifier = Modifier.size(spacingSize))
 
             SelectedAppLine(
-                appIcons = appIcons,
                 apps = getAllApps,
-                sharedPreferences = sharedPreferences,
-                updateAppIcons = updateAppIcons,
-                stopService = stopService,
-                startService = startService
+                sharedPreferences = selectedLineSharedPref,
+                updateAppIcons = updateAppIcons
             )
 
             Spacer(modifier = Modifier.height(spacingSize))
