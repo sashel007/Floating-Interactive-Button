@@ -281,6 +281,8 @@ fun SettingsScreen(
             modifier = Modifier.padding(paddings),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            ButtonsManagerLine()
+
             Spacer(modifier = Modifier.size(spacingSize))
 
             SelectedAppLine(
