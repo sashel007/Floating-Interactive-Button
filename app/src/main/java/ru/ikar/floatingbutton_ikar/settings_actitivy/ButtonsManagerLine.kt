@@ -75,6 +75,14 @@ fun ButtonsManagerLine(
         ButtonKeys.SETTINGS_BUTTON_KEY,
         ButtonKeys.ADDITIONAL_SETTINGS_BUTTON_KEY
     )
+    val updateButtonVisibility = {
+        buttonKeysList.forEach { key ->
+            val currentVisibility = sharedPrefHandler.getButtonVisibility(key)
+            // Здесь обновляем isVisible для каждой кнопки
+        }
+    }
+    var resetTrigger by remember { mutableStateOf(0) }
+
     Text(
         text = "Определите назначение кнопок: ",
         fontWeight = FontWeight.Bold,
@@ -92,7 +100,12 @@ fun ButtonsManagerLine(
         buttonsImageList.forEachIndexed { index, imageResId ->
             val buttonKey = buttonKeysList[index]
             val buttonFunction = sharedPreferences.getString(buttonKey, defaultValue[buttonKey]) ?: "Не найдено"
-            val isVisible = remember { mutableStateOf(sharedPrefHandler.getButtonVisibility(buttonKey)) }
+            val isVisible = remember { mutableStateOf(true) }
+
+            // Обновление isVisible в ответ на изменения resetTrigger
+            LaunchedEffect(key1 = resetTrigger) {
+                isVisible.value = sharedPrefHandler.getButtonVisibility(buttonKey)
+            }
 
             Spacer(modifier = Modifier.width(spaceBetweenBoxes))
 
@@ -166,7 +179,10 @@ fun ButtonsManagerLine(
     Spacer(modifier = Modifier.width(spaceBetweenBoxes))
 
     ElevatedButton(
-        onClick = {  sharedPrefHandler.resetButtonAssignmentsToDefault() }
+        onClick = {
+            sharedPrefHandler.resetButtonAssignmentsToDefault()
+            resetTrigger++  // Изменяем значение, чтобы LaunchedEffect среагировал
+        }
     ) {
         Text(
             text = "Восстановить кнопки до исходных значений",
