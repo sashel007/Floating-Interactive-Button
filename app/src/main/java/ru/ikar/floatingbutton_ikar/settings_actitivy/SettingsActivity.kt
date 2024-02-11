@@ -48,8 +48,6 @@ import ru.ikar.floatingbutton_ikar.sharedpreferences.SharedPreferencesLogger
 
 class SettingsActivity : ComponentActivity() {
     private val overlayPermissionReqCode = 1001  // ваш код запроса для этого разрешения
-    private val selectedLineSharedPrefName = "app_package_names"
-    private val buttonManagerSharedPrefName = "button_manager_names"
     private lateinit var selectedLineSharedPrefObj: SharedPrefHandler
     private lateinit var selectedLineSharedPref: SharedPreferences
     private lateinit var buttonManagerSharedPrefObj: SharedPrefHandler
@@ -59,6 +57,11 @@ class SettingsActivity : ComponentActivity() {
     private lateinit var bluetoothEnableLauncher: ActivityResultLauncher<Intent>
     private val requestScreenCapture = 1002
     private lateinit var sharedPreferenceLogger: SharedPreferencesLogger
+
+    companion object {
+        const val selectedLineSharedPrefName = "app_package_names"
+        const val buttonManagerSharedPrefName = "button_manager_names"
+    }
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {

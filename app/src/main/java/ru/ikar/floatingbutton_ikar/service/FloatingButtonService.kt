@@ -43,7 +43,11 @@ import ru.ikar.floatingbutton_ikar.R
 import ru.ikar.floatingbutton_ikar.buttons.ButtonManager
 import ru.ikar.floatingbutton_ikar.buttons.PanelButtonManager
 import ru.ikar.floatingbutton_ikar.projector.Projector
+import ru.ikar.floatingbutton_ikar.settings_actitivy.SettingsActivity.Companion.buttonManagerSharedPrefName
+import ru.ikar.floatingbutton_ikar.settings_actitivy.SettingsActivity.Companion.selectedLineSharedPrefName
+import ru.ikar.floatingbutton_ikar.sharedpreferences.ButtonKeys
 import ru.ikar.floatingbutton_ikar.sharedpreferences.ButtonPreferenceUtil
+import ru.ikar.floatingbutton_ikar.sharedpreferences.SharedPrefHandler
 import kotlin.math.abs
 
 
@@ -106,6 +110,7 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
     private lateinit var bm: ButtonManager
     private lateinit var pbm: PanelButtonManager
     private lateinit var wifiStateUpdater: WifiStateUpdater
+    private lateinit var sharedPrefHandler: SharedPrefHandler
 
     companion object {
         const val EXTRA_RESULT_CODE = "EXTRA_RESULT_CODE"
@@ -126,10 +131,11 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
         pm = this.packageManager
         windowManager =
             getSystemService(WINDOW_SERVICE) as WindowManager // инициализация WindowManager для кастомных настроек отображения.
-        sharedPreferences = getSharedPreferences("app_package_names", Context.MODE_PRIVATE)
+        sharedPreferences = getSharedPreferences(selectedLineSharedPrefName, Context.MODE_PRIVATE)
         packageNames = getPackageNamesFromSharedPreferences()
         val buttonPreferenceUtl = ButtonPreferenceUtil(this)
         val buttonAssignments = buttonPreferenceUtl.getButtonAssignments()
+        sharedPrefHandler = SharedPrefHandler(this, buttonManagerSharedPrefName)
 
         // Регистрация сервиса для пяти касаний
         registerReceiverOnService()
@@ -160,6 +166,17 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
             floatingButtonLayout.findViewById(R.id.show_all_running_apps_button),
 //            floatingButtonLayout.findViewById(R.id.magnifier_button)
         )
+        // Ставим теги на кнопки, чтобы потом скрывать их через sharedpref
+        buttons.forEachIndexed { index, button ->
+            when (button.id) {
+                R.id.settings_button -> button.tag = ButtonKeys.SETTINGS_BUTTON_KEY
+                R.id.additional_settings_button -> button.tag = ButtonKeys.ADDITIONAL_SETTINGS_BUTTON_KEY
+                R.id.back_button -> button.tag = ButtonKeys.BACK_BUTTON_KEY
+                R.id.home_button -> button.tag = ButtonKeys.HOME_BUTTON_KEY
+                R.id.show_all_running_apps_button -> button.tag = ButtonKeys.RECENT_APPS_BUTTON_KEY
+                // Если есть другие кнопки, добавьте их здесь
+            }
+        }
 
         addVolumeSliderToLayout()
 
@@ -204,6 +221,9 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
 
         // Добавляем базовые кнопки (включая иконки приложений)
         addButtonsToLayout()
+
+        // Видимость кнопок, установленная пользователем
+//        bm.updateButtonVisibility(sharedPrefHandler)
 
         // Добавляем доп.панель
         addSettingsPanelToLayout()
@@ -471,13 +491,28 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
      * @param mainButton Центральная кнопка, вокгруг которой рендерятся доп.кнопки.
      */
     private fun toggleButtonsVisibility(selectedButtons: List<View>, mainButton: View) {
+
+        val buttonKeysList = listOf(
+            ButtonKeys.HOME_BUTTON_KEY,
+            ButtonKeys.BACK_BUTTON_KEY,
+            ButtonKeys.RECENT_APPS_BUTTON_KEY,
+            ButtonKeys.SETTINGS_BUTTON_KEY,
+            ButtonKeys.ADDITIONAL_SETTINGS_BUTTON_KEY
+        )
+
+        val visibleButtons = selectedButtons.filter { button ->
+            val key = button.tag.toString() // Например, button.tag хранит ключ для SharedPreferences
+            sharedPrefHandler.getButtonVisibility(key)
+        }
+        Log.d("VISIBLE_BTN","${visibleButtons.size}")
+
         hideButtonsRunnable = Runnable {
-            toggleButtonsVisibility(selectedButtons, mainButton)
+            toggleButtonsVisibility(visibleButtons, mainButton)
         }
         // Убедимся, отменены ли предыдущие операции со сворачиванием
         if (isExpanded) {
             // Кнопки развёрнуты. Надо свернуть
-            for (button in selectedButtons) {
+            for (button in visibleButtons) {
                 // Возьмём центр основной кнопки за целевые координаты
                 button.animate().x(mainButton.x + mainButton.width / 2 - button.width / 2)
                     .y(mainButton.y + mainButton.height / 2 - button.height / 2).scaleX(0f)
@@ -490,16 +525,22 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
             // Если панель отображается и кнопки собираются свернуться, скрыть панель
         } else {
             // Кнопки уже свёрнуты, надо их развернуть
-            for ((index, button) in selectedButtons.withIndex()) {
+            for ((index, button) in visibleButtons.withIndex()) {
                 // Рассчитаем последнюю позицию кнопки
+
                 val (finalX, finalY) = calculateFinalPosition(
-                    button, mainButton, index, selectedButtons.size
+                    button, mainButton, index, visibleButtons.size
                 )
 
                 // Устанавливаем начальную позицию и делаем кнопку видимой
                 button.x = mainButton.x /* + mainButton.width / 2  - button.width / 2 */
                 button.y = mainButton.y /* + mainButton.height / 2  - button.height / 2 */
                 button.visibility = View.VISIBLE
+
+//                selectedButtons.forEachIndexed { index, button ->
+//                    val isVisible = sharedPrefHandler.getButtonVisibility(buttonKeysList[index])
+//                    button.visibility = if (isVisible) View.VISIBLE else View.GONE
+//                }
 
                 // Восстанавливаем прозрачность и масштаб до исходных значений
                 button.alpha = 1f

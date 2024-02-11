@@ -2,9 +2,11 @@ package ru.ikar.floatingbutton_ikar.sharedpreferences
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.system.Os.remove
 
 class SharedPrefHandler(
-    context: Context, sharedPrefName: String) {
+    context: Context, sharedPrefName: String
+) {
     var sharedPref: SharedPreferences =
         context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
     var keys: List<String>
@@ -53,6 +55,11 @@ class SharedPrefHandler(
             ButtonDefaults.defaultValue.forEach { (key, value) ->
                 putString(key, value)
             }
+            // Сброс видимости кнопок на дефолтное (все кнопки видимы)
+            ButtonKeys.keysFromButtonKeysObject.forEach { key ->
+                putBoolean("${key}_visibility", true)
+            }
+
             apply()
         }
     }
@@ -63,5 +70,13 @@ class SharedPrefHandler(
 
     fun getSharedPrefValue(key: String, value: String? = null): String? {
         return sharedPref.getString(key, value)
+    }
+
+    fun setButtonVisibility(key: String, isVisible: Boolean) {
+        sharedPref.edit().putBoolean(key + "_visibility", isVisible).apply()
+    }
+
+    fun getButtonVisibility(key: String): Boolean {
+        return sharedPref.getBoolean(key + "_visibility", true) // По умолчанию все кнопки видимы
     }
 }

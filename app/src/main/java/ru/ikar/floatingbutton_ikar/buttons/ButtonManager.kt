@@ -12,6 +12,8 @@ import ru.ikar.floatingbutton_ikar.service.buttons.additionalbuttons.BackButton
 import ru.ikar.floatingbutton_ikar.service.buttons.additionalbuttons.HomeButton
 import ru.ikar.floatingbutton_ikar.service.buttons.additionalbuttons.SettingsButton
 import ru.ikar.floatingbutton_ikar.service.buttons.additionalbuttons.ShowAllRunningAppsButton
+import ru.ikar.floatingbutton_ikar.sharedpreferences.ButtonKeys
+import ru.ikar.floatingbutton_ikar.sharedpreferences.SharedPrefHandler
 
 class ButtonManager(
     private val context: Context,
@@ -24,6 +26,21 @@ class ButtonManager(
 
     init {
         Log.d("ButtonManager", "Button assignments: $buttonAssignments")
+    }
+
+    val buttonKeysList = listOf(
+        ButtonKeys.HOME_BUTTON_KEY,
+        ButtonKeys.BACK_BUTTON_KEY,
+        ButtonKeys.RECENT_APPS_BUTTON_KEY,
+        ButtonKeys.SETTINGS_BUTTON_KEY,
+        ButtonKeys.ADDITIONAL_SETTINGS_BUTTON_KEY
+    )
+
+    fun updateButtonVisibility(sharedPrefHandler: SharedPrefHandler) {
+        buttons.forEachIndexed { index, button ->
+            val isVisible = sharedPrefHandler.getButtonVisibility(buttonKeysList[index])
+            button.visibility = if (isVisible) View.VISIBLE else View.GONE
+        }
     }
 
     fun setListenersForButtons() {

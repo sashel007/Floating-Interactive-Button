@@ -110,6 +110,7 @@ fun ButtonsManagerLine(
                             showDialog = true
                         })
 
+                // Скрыть кнопку
                 Image(
                     painter = painterResource(id = R.drawable.back_button_cross_icon), // Идентификатор ресурса крестика
                     contentDescription = "Remove",
@@ -117,7 +118,7 @@ fun ButtonsManagerLine(
                         .size(crossIconSize)
                         .align(Alignment.TopEnd)
                         .clickable(onClick = {
-                            // Обработка нажатия на крестик
+                            sharedPrefHandler.setButtonVisibility(buttonKeysList[index], false)
                         }),
                     contentScale = ContentScale.Fit
                 )
@@ -140,7 +141,6 @@ fun ButtonsManagerLine(
                             currentFunction = function.name // Используем имя функции для отображения
                         },
                         setCurrentFunction = setCurrentFunction,
-                        functionValueToNameMap = functionValueToNameMap,
                         imageResId = imageResId
                     )
                 }
@@ -167,7 +167,6 @@ fun FunctionSelectionDialog(
     initialFunction: String,
     onFunctionSelected: (ButtonFunction) -> Unit,
     setCurrentFunction: (String) -> Unit,
-    functionValueToNameMap: Map<String, String>,
     imageResId: Int
 ) {
     if (showDialog) {
