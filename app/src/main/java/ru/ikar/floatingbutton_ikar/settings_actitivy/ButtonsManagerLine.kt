@@ -21,12 +21,14 @@ import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -90,6 +92,7 @@ fun ButtonsManagerLine(
         buttonsImageList.forEachIndexed { index, imageResId ->
             val buttonKey = buttonKeysList[index]
             val buttonFunction = sharedPreferences.getString(buttonKey, defaultValue[buttonKey]) ?: "Не найдено"
+            val isVisible = remember { mutableStateOf(sharedPrefHandler.getButtonVisibility(buttonKey)) }
 
             Spacer(modifier = Modifier.width(spaceBetweenBoxes))
 
@@ -104,24 +107,36 @@ fun ButtonsManagerLine(
                     contentDescription = "Базовая кнопка",
                     modifier = Modifier
                         .size(45.dp)
+                        .alpha(if (isVisible.value) 1f else 0.5f) // Изменение прозрачности
                         .clickable {
-                            expandedMenuIndex = index
-                            currentFunction = buttonFunction
-                            showDialog = true
-                        })
-
-                // Скрыть кнопку
-                Image(
-                    painter = painterResource(id = R.drawable.back_button_cross_icon), // Идентификатор ресурса крестика
-                    contentDescription = "Remove",
-                    modifier = Modifier
-                        .size(crossIconSize)
-                        .align(Alignment.TopEnd)
-                        .clickable(onClick = {
-                            sharedPrefHandler.setButtonVisibility(buttonKeysList[index], false)
-                        }),
-                    contentScale = ContentScale.Fit
+                            if (!isVisible.value) {
+                                // Если кнопка скрыта, делаем её видимой и обновляем SharedPreferences
+                                isVisible.value = true
+                                sharedPrefHandler.setButtonVisibility(buttonKey, true)
+                            } else {
+                                // Если кнопка видима, открываем диалог
+                                expandedMenuIndex = index
+                                currentFunction = buttonFunction
+                                showDialog = true
+                            }
+                        }
                 )
+
+                if (isVisible.value) {
+                    // Скрыть кнопку
+                    Image(
+                        painter = painterResource(id = R.drawable.back_button_cross_icon), // Идентификатор ресурса крестика
+                        contentDescription = "Remove",
+                        modifier = Modifier
+                            .size(crossIconSize)
+                            .align(Alignment.TopEnd)
+                            .clickable(onClick = {
+                                isVisible.value = false // Обновление состояния видимости
+                                sharedPrefHandler.setButtonVisibility(buttonKeysList[index], false)
+                            }),
+                        contentScale = ContentScale.Fit
+                    )
+                }
 
                 if (expandedMenuIndex == index) {
                     val buttonKey = buttonKeysList[expandedMenuIndex!!]
@@ -218,4 +233,3 @@ fun FunctionSelectionDialog(
 
     }
 }
-
