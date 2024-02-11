@@ -43,10 +43,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import ru.ikar.floatingbutton_ikar.service.FloatingButtonService
-import ru.ikar.floatingbutton_ikar.sharedpreference.SharedPrefHandler
+import ru.ikar.floatingbutton_ikar.sharedpreferences.SharedPrefHandler
+import ru.ikar.floatingbutton_ikar.sharedpreferences.SharedPreferencesLogger
 
 class SettingsActivity : ComponentActivity() {
-
     private val overlayPermissionReqCode = 1001  // ваш код запроса для этого разрешения
     private val selectedLineSharedPrefName = "app_package_names"
     private val buttonManagerSharedPrefName = "button_manager_names"
@@ -58,6 +58,7 @@ class SettingsActivity : ComponentActivity() {
     private lateinit var accessibilityPermissionLauncher: ActivityResultLauncher<Intent>
     private lateinit var bluetoothEnableLauncher: ActivityResultLauncher<Intent>
     private val requestScreenCapture = 1002
+    private lateinit var sharedPreferenceLogger: SharedPreferencesLogger
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,6 +67,8 @@ class SettingsActivity : ComponentActivity() {
         buttonManagerSharedPrefObj = SharedPrefHandler(this, buttonManagerSharedPrefName)
         selectedLineSharedPref = selectedLineSharedPrefObj.sharedPref
         buttonManagerSharedPref = buttonManagerSharedPrefObj.sharedPref
+
+        logSharedPreferences(buttonManagerSharedPref)
 
         // Инициализация лаунчера для запроса разрешения на использование службы доступности
         accessibilityPermissionLauncher = registerForActivityResult(
@@ -116,9 +119,17 @@ class SettingsActivity : ComponentActivity() {
                 getAllApps = { context -> getAllApps(context) },
                 selectedLineSharedPref = selectedLineSharedPref,
                 buttonManagerSharedPref = buttonManagerSharedPref,
-                getAppIconsFromKeys = { context -> getAppIconsFromKeys(context, selectedLineSharedPrefObj.keys) }
+                buttonManagerSharedPrefHandler = buttonManagerSharedPrefObj,
+                getAppIconsFromKeys = { context ->
+                    getAppIconsFromKeys(
+                        context,
+                        selectedLineSharedPrefObj.keys
+                    )
+                }
             )
         }
+
+        sharedPreferenceLogger = SharedPreferencesLogger(this, buttonManagerSharedPrefName)
 
         // Проверка разрешения на отображение поверх других приложений.
         if (!Settings.canDrawOverlays(this)) {
@@ -239,6 +250,11 @@ class SettingsActivity : ComponentActivity() {
             bluetoothEnableLauncher.launch(enableBtIntent)
         }
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        sharedPreferenceLogger.unregisterListener()
+    }
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -247,6 +263,7 @@ fun SettingsScreen(
     getAllApps: (context: Context) -> List<AppInfo>,
     selectedLineSharedPref: SharedPreferences,
     buttonManagerSharedPref: SharedPreferences,
+    buttonManagerSharedPrefHandler: SharedPrefHandler,
     getAppIconsFromKeys: (context: Context) -> List<ImageBitmap>
 ) {
     val context = LocalContext.current
@@ -272,7 +289,7 @@ fun SettingsScreen(
             modifier = Modifier.padding(paddings),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            ButtonsManagerLine(buttonManagerSharedPref)
+            ButtonsManagerLine(buttonManagerSharedPref, buttonManagerSharedPrefHandler)
 
             Spacer(modifier = Modifier.size(spacingSize))
 
@@ -297,6 +314,7 @@ fun SettingsScreen(
             AccessabilityButton()
         }
     }
+
 }
 
 fun isMyServiceRunning(context: Context, serviceClass: Class<*>): Boolean {
@@ -307,4 +325,11 @@ fun isMyServiceRunning(context: Context, serviceClass: Class<*>): Boolean {
         }
     }
     return false
+}
+
+fun logSharedPreferences(sharedPreferences: SharedPreferences) {
+    val allEntries = sharedPreferences.all
+    for ((key, value) in allEntries) {
+        Log.d("SharedPreferences", "$key: $value")
+    }
 }

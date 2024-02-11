@@ -1,12 +1,13 @@
 package ru.ikar.floatingbutton_ikar.settings_actitivy
 
 import android.content.SharedPreferences
-import android.widget.Toast
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,9 +15,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Divider
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ElevatedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,19 +29,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import ru.ikar.floatingbutton_ikar.R
-import ru.ikar.floatingbutton_ikar.sharedpreference.ButtonFunction
-import ru.ikar.floatingbutton_ikar.sharedpreference.availableFunctions
+import ru.ikar.floatingbutton_ikar.sharedpreferences.ButtonDefaults.defaultValue
+import ru.ikar.floatingbutton_ikar.sharedpreferences.ButtonFunction
+import ru.ikar.floatingbutton_ikar.sharedpreferences.ButtonKeys
+import ru.ikar.floatingbutton_ikar.sharedpreferences.SharedPrefHandler
+import ru.ikar.floatingbutton_ikar.sharedpreferences.availableFunctions
 
 @Composable
-fun ButtonsManagerLine(sharedPreferences: SharedPreferences) {
-
+fun ButtonsManagerLine(
+    sharedPreferences: SharedPreferences,
+    sharedPrefHandler: SharedPrefHandler
+) {
     val spaceBetweenBoxes = 16.dp
     val boxSize = 50.dp
     val crossIconSize = 16.dp
@@ -52,12 +59,20 @@ fun ButtonsManagerLine(sharedPreferences: SharedPreferences) {
         R.drawable.settings_button_icon,
         R.drawable.additional_settings_icon
     )
-    var expanded by remember { mutableStateOf(false) }
-    val context = LocalContext.current
-    var expandedMenuIndex by remember {
-        mutableStateOf<Int?>(null)
+    var expandedMenuIndex by remember { mutableStateOf<Int?>(null) }
+    var showDialog by remember { mutableStateOf(false) }
+    var currentFunction by remember { mutableStateOf("") }
+    val setCurrentFunction: (String) -> Unit = { newValue ->
+        currentFunction = newValue
     }
-
+    val functionValueToNameMap = availableFunctions.associateBy({ it.value }, { it.name })
+    val buttonKeysList = listOf(
+        ButtonKeys.HOME_BUTTON_KEY,
+        ButtonKeys.BACK_BUTTON_KEY,
+        ButtonKeys.RECENT_APPS_BUTTON_KEY,
+        ButtonKeys.SETTINGS_BUTTON_KEY,
+        ButtonKeys.ADDITIONAL_SETTINGS_BUTTON_KEY
+    )
     Text(
         text = "Определите назначение кнопок: ",
         fontWeight = FontWeight.Bold,
@@ -73,6 +88,9 @@ fun ButtonsManagerLine(sharedPreferences: SharedPreferences) {
             .wrapContentWidth(), horizontalArrangement = Arrangement.SpaceBetween
     ) {
         buttonsImageList.forEachIndexed { index, imageResId ->
+            val buttonKey = buttonKeysList[index]
+            val buttonFunction = sharedPreferences.getString(buttonKey, defaultValue[buttonKey]) ?: "Не найдено"
+
             Spacer(modifier = Modifier.width(spaceBetweenBoxes))
 
             Box(
@@ -81,12 +99,15 @@ fun ButtonsManagerLine(sharedPreferences: SharedPreferences) {
                     .background(boxBackground)
                     .padding(2.dp)
             ) {
-                Image(painterResource(id = imageResId),
+                Image(
+                    painter = painterResource(id = imageResId),
                     contentDescription = "Базовая кнопка",
                     modifier = Modifier
                         .size(45.dp)
                         .clickable {
-                            expandedMenuIndex = if (expandedMenuIndex == index) null else index
+                            expandedMenuIndex = index
+                            currentFunction = buttonFunction
+                            showDialog = true
                         })
 
                 Image(
@@ -101,54 +122,101 @@ fun ButtonsManagerLine(sharedPreferences: SharedPreferences) {
                     contentScale = ContentScale.Fit
                 )
 
-                if (expandedMenuIndex != null) {
-                    // Получаем текущую функцию кнопки из SharedPreferences
-                    val currentFunctionKey = "function_${expandedMenuIndex}"
-                    val currentFunction = sharedPreferences.getString(currentFunctionKey, "Не назначено") ?: "Не назначено"
+                if (expandedMenuIndex == index) {
+                    val buttonKey = buttonKeysList[expandedMenuIndex!!]
+                    // Получаем текущую функцию кнопки из SharedPreferences используя правильный ключ
+                    val functionValue = sharedPreferences.getString(buttonKey, defaultValue[buttonKey]) ?: "Не найдено"
+                    val currentFunctionName = functionValueToNameMap[functionValue] ?: "Не назначено"
+                    val imageResId = buttonsImageList.getOrNull(expandedMenuIndex!!) ?: R.drawable.any_button_icon
 
-                    FunctionSelectionMenu(
-                        expandedMenuIndex = expandedMenuIndex,
-                        currentFunction = currentFunction,
-                        onFunctionSelected = { index, function ->
-                            expandedMenuIndex = null // Скрыть меню после выбора
-                            sharedPreferences.edit().putString(currentFunctionKey, function.value).apply()
-                            Toast.makeText(context, "Функция '${function.name}' выбрана для кнопки $index", Toast.LENGTH_SHORT).show()
-                        }
+                    FunctionSelectionDialog(
+                        showDialog = showDialog,
+                        onDismissRequest = { showDialog = false },
+                        initialFunction = currentFunctionName,
+                        onFunctionSelected = { function ->
+                            // Сохраняем выбранную функцию используя правильный ключ
+                            sharedPreferences.edit().putString(buttonKey, function.value).apply()
+                            // Обновляем текущую функцию для отображения
+                            currentFunction = function.name // Используем имя функции для отображения
+                        },
+                        setCurrentFunction = setCurrentFunction,
+                        functionValueToNameMap = functionValueToNameMap,
+                        imageResId = imageResId
                     )
                 }
             }
         }
     }
+
+    Spacer(modifier = Modifier.width(spaceBetweenBoxes))
+
+    ElevatedButton(
+        onClick = {  sharedPrefHandler.resetButtonAssignmentsToDefault() }
+    ) {
+        Text(
+            text = "Восстановить кнопки до исходных значений",
+            fontSize = 8.sp
+        )
+    }
 }
 
 @Composable
-fun FunctionSelectionMenu(
-    expandedMenuIndex: Int?,
-    onFunctionSelected: (Int, ButtonFunction) -> Unit,
-    currentFunction: String
+fun FunctionSelectionDialog(
+    showDialog: Boolean,
+    onDismissRequest: () -> Unit,
+    initialFunction: String,
+    onFunctionSelected: (ButtonFunction) -> Unit,
+    setCurrentFunction: (String) -> Unit,
+    functionValueToNameMap: Map<String, String>,
+    imageResId: Int
 ) {
-    if (expandedMenuIndex != null) {
-        DropdownMenu(
-            expanded = true,
-            onDismissRequest = { onFunctionSelected(expandedMenuIndex, ButtonFunction("", "")) }
-        ) {
-            // Используем Text напрямую в параметре text DropdownMenuItem для заголовка
-            DropdownMenuItem(
-                onClick = { /* Обработка нажатия не требуется для заголовка */ },
-                text = { Text("Назначение кнопки: $currentFunction", fontSize = 12.sp) }
-            )
-            // Добавляем разделитель после заголовка
-            DropdownMenuItem(
-                onClick = {}, // Пустая лямбда для заглушки, разделитель не должен быть кликабельным
-                text = { Divider() }
-            )
-            availableFunctions.forEach { function ->
-                DropdownMenuItem(
-                    onClick = { onFunctionSelected(expandedMenuIndex, function) },
-                    text = { Text(function.name, fontSize = 16.sp) } // Правильное использование text
-                )
+    if (showDialog) {
+        var currentFunction by remember {
+            mutableStateOf(initialFunction)
+        }
+
+        Dialog(onDismissRequest = { onDismissRequest() }) {
+            Surface(
+                shape = RoundedCornerShape(12.dp), // Закругленные углы для Surface
+                shadowElevation = 8.dp, // Эффект поднятия через тень
+            ) {
+                Column(
+                    modifier = Modifier
+                        .background(Color.White)
+                        .padding(8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(id = imageResId),
+                            contentDescription = "Выбранная кнопка",
+                            modifier = Modifier
+                                .size(40.dp)
+                                .padding(end = 8.dp)
+                        )
+
+                        Text("Назначение кнопки: $currentFunction", fontSize = 12.sp)
+                    }
+                    Divider()
+                    availableFunctions.forEach { function ->
+                        Text(
+                            text = function.name,
+                            fontSize = 16.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    // Обновляем currentFunction, используя название функции, а не её техническое значение
+                                    currentFunction =
+                                        function.name // Используйте название функции напрямую
+                                    onFunctionSelected(function)
+                                    setCurrentFunction(function.name) // Отправляем название функции в ButtonsManagerLine
+                                }
+                                .padding(8.dp)
+                        )
+                    }
+                }
             }
         }
+
     }
 }
 

@@ -43,6 +43,7 @@ import ru.ikar.floatingbutton_ikar.R
 import ru.ikar.floatingbutton_ikar.buttons.ButtonManager
 import ru.ikar.floatingbutton_ikar.buttons.PanelButtonManager
 import ru.ikar.floatingbutton_ikar.projector.Projector
+import ru.ikar.floatingbutton_ikar.sharedpreferences.ButtonPreferenceUtil
 import kotlin.math.abs
 
 
@@ -127,6 +128,8 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
             getSystemService(WINDOW_SERVICE) as WindowManager // инициализация WindowManager для кастомных настроек отображения.
         sharedPreferences = getSharedPreferences("app_package_names", Context.MODE_PRIVATE)
         packageNames = getPackageNamesFromSharedPreferences()
+        val buttonPreferenceUtl = ButtonPreferenceUtil(this)
+        val buttonAssignments = buttonPreferenceUtl.getButtonAssignments()
 
         // Регистрация сервиса для пяти касаний
         registerReceiverOnService()
@@ -181,7 +184,8 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
             context = this,
             packageManager = packageManager,
             buttons = buttons,
-            settingsPanelController = this
+            settingsPanelController = this,
+            buttonAssignments = buttonAssignments
         )
 
         // Управление кнопками вспомогательной панели
@@ -223,7 +227,7 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
         addVolumeSliderToLayout()
 
         // Ставим слушатели на вспомогательные кнопки
-        bm.setListenersForButtons(this)
+        bm.setListenersForButtons()
 
         // Слушатели на кнопки панели
         pbm.setListenersForPanelButtons()
@@ -233,8 +237,6 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
 
         // Установка слушателя на основную кнопку
         onMoveMainButtonLogic()
-
-        Log.d("IS_PANEL_SHOWN", "$isSettingsPanelShown")
     }
 
     private fun createAndAddMagnifierView() {
@@ -618,11 +620,7 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
             windowManager.removeView(magnifierViewLayout)
         }
         projector.dismiss()
-        // Удаление ползунка яркости
-//        if (::brightnessSliderLayout.isInitialized) {
-//            Log.d("FloatingButtonService", "Removing brightnessSliderLayout")
-//            windowManager.removeView(brightnessSliderLayout)
-//        }
+
         try {
             unregisterReceiver(receiver)
         } catch (e: IllegalArgumentException) {
