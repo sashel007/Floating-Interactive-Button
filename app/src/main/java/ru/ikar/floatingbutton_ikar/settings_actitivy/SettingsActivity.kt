@@ -296,13 +296,24 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.size(spacingSize))
 
+            /** Здесь назначаются дополнительные кнопки в ячейках */
+
             SelectedAppLine(
                 apps = getAllApps,
                 sharedPreferences = selectedLineSharedPref,
                 updateAppIcons = updateAppIcons
             )
 
+//            /** Дополнительные ячейки для дополнительных кнопок */
+//
+//            AddSelectedAppLine(apps = getAllApps) {
+//
+//            }
+
+
             Spacer(modifier = Modifier.height(spacingSize))
+
+            /** Активация сервиса */
 
             Switch(checked = isFloatingButtonOn, onCheckedChange = { isChecked ->
                 isFloatingButtonOn = isChecked

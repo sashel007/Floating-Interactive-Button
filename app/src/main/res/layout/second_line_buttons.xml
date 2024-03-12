@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="42dp"
+    android:layout_height="200dp"
+    android:background="@drawable/second_line_btn_background">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <ImageButton
+            android:layout_width="@dimen/button_dim"
+            android:layout_height="@dimen/button_dim"
+            android:layout_margin="6dp"
+            android:background="@android:color/transparent"
+            android:scaleType="centerCrop" />
+
+        <ImageButton
+            android:layout_width="@dimen/button_dim"
+            android:layout_height="@dimen/button_dim"
+            android:layout_margin="6dp"
+            android:background="@android:color/transparent"
+            android:scaleType="centerCrop" />
+
+        <ImageButton
+            android:layout_width="@dimen/button_dim"
+            android:layout_height="@dimen/button_dim"
+            android:layout_margin="6dp"
+            android:background="@android:color/transparent"
+            android:scaleType="centerCrop" />
+
+        <ImageButton
+            android:layout_width="@dimen/button_dim"
+            android:layout_height="@dimen/button_dim"
+            android:layout_margin="6dp"
+            android:background="@android:color/transparent"
+            android:scaleType="centerCrop" />
+    </LinearLayout>
+
+</FrameLayout>

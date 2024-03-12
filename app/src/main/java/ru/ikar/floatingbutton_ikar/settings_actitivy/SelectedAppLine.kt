@@ -16,11 +16,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -68,58 +70,69 @@ fun SelectedAppLine(
 
     Spacer(modifier = Modifier.size(spacerSize))
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = spaceBetweenBoxes)
-            .wrapContentWidth(), horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        // Используем цикл, чтобы создать 4 блока
-        for (index in 0..3) {
-            val key = "package_name_key_${index}"
-            val packageName = sharedPreferences.getString(key, null)
-            var bitmap: ImageBitmap? = null
-
-            if (packageName != null) {
-                val drawable: Drawable? = try {
-                    packageManager.getApplicationIcon(packageName)
-                } catch (e: PackageManager.NameNotFoundException) {
-                    null
-                }
-                bitmap = when (drawable) {
-                    is BitmapDrawable -> drawable.bitmap.asImageBitmap()
-                    is AdaptiveIconDrawable -> {
-                        val width = drawable.intrinsicWidth
-                        val height = drawable.intrinsicHeight
-                        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                        val canvas = android.graphics.Canvas(bitmap)
-                        drawable.setBounds(0, 0, canvas.width, canvas.height)
-                        drawable.draw(canvas)
-                        bitmap.asImageBitmap()
-                    }
-                    else -> null
-                }
+    Column {
+        for (rowIndex in 0..1) {
+            if (rowIndex != 0) {
+                Spacer(modifier = Modifier.height(spaceBetweenBoxes))
             }
-            Spacer(modifier = Modifier.width(spaceBetweenBoxes))
 
-            Box(
+            Row(
                 modifier = Modifier
-                    .size(boxSize)
-                    .background(boxBackground)
-                    .padding(spaceBetweenBoxes / 2) // Добавлено это
-                    .clickable(indication = null,
-                        interactionSource = remember { MutableInteractionSource() },
-                        onClick = { showDialogWithButtonsIndex = index })
+                    .fillMaxWidth()
+                    .padding(horizontal = spaceBetweenBoxes)
+                    .wrapContentWidth(), horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Если у нас есть иконка для этого блока, отобразим её
-                bitmap?.let {
-                    Image(
-                        bitmap = it, contentDescription = null, modifier = Modifier.fillMaxSize()
-                    )
+                // Используем цикл, чтобы создать 4 блока
+                for (index in 0..3) {
+                    val totalIndex = rowIndex * 4 + index
+                    val key = "package_name_key_${totalIndex}"
+                    val packageName = sharedPreferences.getString(key, null)
+                    var bitmap: ImageBitmap? = null
+
+                    if (packageName != null) {
+                        val drawable: Drawable? = try {
+                            packageManager.getApplicationIcon(packageName)
+                        } catch (e: PackageManager.NameNotFoundException) {
+                            null
+                        }
+                        bitmap = when (drawable) {
+                            is BitmapDrawable -> drawable.bitmap.asImageBitmap()
+                            is AdaptiveIconDrawable -> {
+                                val width = drawable.intrinsicWidth
+                                val height = drawable.intrinsicHeight
+                                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                                val canvas = android.graphics.Canvas(bitmap)
+                                drawable.setBounds(0, 0, canvas.width, canvas.height)
+                                drawable.draw(canvas)
+                                bitmap.asImageBitmap()
+                            }
+                            else -> null
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(spaceBetweenBoxes))
+
+                    Box(
+                        modifier = Modifier
+                            .size(boxSize)
+                            .background(boxBackground)
+                            .padding(spaceBetweenBoxes / 2) // Добавлено это
+                            .clickable(indication = null,
+                                interactionSource = remember { MutableInteractionSource() },
+                                onClick = { showDialogWithButtonsIndex = totalIndex })
+                    ) {
+                        // Если у нас есть иконка для этого блока, отобразим её
+                        bitmap?.let {
+                            Image(
+                                bitmap = it, contentDescription = null, modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+
                 }
             }
         }
     }
+
 
     showDialogWithButtonsIndex?.let { index ->
         val key = "package_name_key_${index}"
@@ -146,7 +159,7 @@ fun SelectedAppLine(
                     val editor = sharedPreferences.edit()
                     editor.remove("package_name_key_$showDialogWithButtonsIndex")
                     editor.apply()
-                    // Обновление иконок приложения (если требуется)
+                    // Обновление иконок приложения
                     updateAppIcons()
                     // Закрытие диалога
                     showDialogWithButtonsIndex = null
@@ -184,7 +197,7 @@ fun ShowDialog(
                 .fillMaxHeight(0.8f) // 80% экрана по высоте
                 .background(Color.White)
         ) {
-            // Вставляем ваш список приложений
+            // Вставляем список приложений
             SystemAppList(key, apps, sharedPreferences, updateAppIcons, onClose)
         }
     }

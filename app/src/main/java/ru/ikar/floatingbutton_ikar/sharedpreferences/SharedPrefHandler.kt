@@ -14,10 +14,14 @@ class SharedPrefHandler(
     init {
         if (sharedPrefName == "app_package_names") {
             keys = listOf(
+                "package_name_key_0",
                 "package_name_key_1",
                 "package_name_key_2",
                 "package_name_key_3",
-                "package_name_key_4"
+                "package_name_key_4",
+                "package_name_key_5",
+                "package_name_key_6",
+                "package_name_key_7",
             )
         } else {
             keys = listOf(

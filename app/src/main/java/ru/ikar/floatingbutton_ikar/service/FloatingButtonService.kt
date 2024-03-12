@@ -29,13 +29,16 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.Surface
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
+import android.view.WindowManager.LayoutParams
 import android.view.animation.AnimationUtils
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.Magnifier
 import androidx.annotation.RequiresApi
+import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.constraintlayout.widget.Group
 import androidx.core.app.NotificationCompat
 import com.google.android.material.slider.Slider
@@ -67,13 +70,15 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
     private var isExpanded = false // состояние кнопок (кнопки развернуты/свёрнуты)
     private var hasMoved = false
     private lateinit var pm: PackageManager
-    private lateinit var buttons: MutableList<View>
+    private lateinit var defaultButtons: MutableList<View>
+    private val dynamicButtons: MutableList<View> = mutableListOf()
+    private var allButtons = mutableListOf<View>()
     private lateinit var panelButtons: List<View>
     private lateinit var windowManager: WindowManager
     private lateinit var mainButton: View
-    private lateinit var params: WindowManager.LayoutParams
-    private lateinit var volumeSliderParams: WindowManager.LayoutParams
-    private lateinit var panelParams: WindowManager.LayoutParams
+    private lateinit var params: LayoutParams
+    private lateinit var volumeSliderParams: LayoutParams
+    private lateinit var panelParams: LayoutParams
     private lateinit var floatingButtonLayout: View
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var packageNames: List<String>
@@ -100,17 +105,21 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
     private var currentVolume: Int = 0
     private lateinit var volumeOffPanelButton: ImageButton
     private lateinit var magnifierViewLayout: View
-    private lateinit var magnifierViewParams: WindowManager.LayoutParams
+    private lateinit var magnifierViewParams: LayoutParams
     private lateinit var magnifierImageView: ImageView
     private lateinit var brightnessSliderLayout: View
     private lateinit var brightnessSlider: Slider
-    private lateinit var brightnessSliderParams: WindowManager.LayoutParams
+    private lateinit var brightnessSliderParams: LayoutParams
     private var isBrightnessSliderShown = false
     private lateinit var projector: Projector
     private lateinit var bm: ButtonManager
     private lateinit var pbm: PanelButtonManager
     private lateinit var wifiStateUpdater: WifiStateUpdater
     private lateinit var sharedPrefHandler: SharedPrefHandler
+    private lateinit var secondButtonLineLayout: View
+    private lateinit var secondButtonLineParams: LayoutParams
+    private var first4btns = mutableListOf<View>()
+    private var second4btns = mutableListOf<View>()
 
     companion object {
         const val EXTRA_RESULT_CODE = "EXTRA_RESULT_CODE"
@@ -133,21 +142,22 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
             getSystemService(WINDOW_SERVICE) as WindowManager // инициализация WindowManager для кастомных настроек отображения.
         sharedPreferences = getSharedPreferences(selectedLineSharedPrefName, Context.MODE_PRIVATE)
         packageNames = getPackageNamesFromSharedPreferences()
+        Log.d("PACKAGE_NAMES", "$packageNames")
         val buttonPreferenceUtl = ButtonPreferenceUtil(this)
         val buttonAssignments = buttonPreferenceUtl.getButtonAssignments()
         sharedPrefHandler = SharedPrefHandler(this, buttonManagerSharedPrefName)
 
-        // Регистрация сервиса для пяти касаний
+        /** Регистрация сервиса для пяти касаний */
         registerReceiverOnService()
 
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
 
-        // Инициализация AudioManager
+        /** Инициализация AudioManager */
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
 //        createVirtualDisplay()
 
-        // инфлейтим макет кнопки (floating button).
+        /** инфлейтим макет кнопки (floating button). */
         floatingButtonLayout =
             LayoutInflater.from(this).inflate(R.layout.floating_button_layout, null)
         mainButton = floatingButtonLayout.findViewById(R.id.ellipse_outer)
@@ -157,26 +167,16 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
             LayoutInflater.from(this).inflate(R.layout.settings_panel_layout, null)
         brightnessSliderLayout =
             LayoutInflater.from(this).inflate(R.layout.brightness_slider_layout, null)
+        secondButtonLineLayout =
+            LayoutInflater.from(this).inflate(R.layout.second_line_buttons, null)
 
-        buttons = mutableListOf(
-            floatingButtonLayout.findViewById(R.id.settings_button),
-            floatingButtonLayout.findViewById(R.id.additional_settings_button),
-            floatingButtonLayout.findViewById(R.id.back_button),
-            floatingButtonLayout.findViewById(R.id.home_button),
-            floatingButtonLayout.findViewById(R.id.show_all_running_apps_button),
-//            floatingButtonLayout.findViewById(R.id.magnifier_button)
-        )
-        // Ставим теги на кнопки, чтобы потом скрывать их через sharedpref
-        buttons.forEachIndexed { index, button ->
-            when (button.id) {
-                R.id.settings_button -> button.tag = ButtonKeys.SETTINGS_BUTTON_KEY
-                R.id.additional_settings_button -> button.tag = ButtonKeys.ADDITIONAL_SETTINGS_BUTTON_KEY
-                R.id.back_button -> button.tag = ButtonKeys.BACK_BUTTON_KEY
-                R.id.home_button -> button.tag = ButtonKeys.HOME_BUTTON_KEY
-                R.id.show_all_running_apps_button -> button.tag = ButtonKeys.RECENT_APPS_BUTTON_KEY
-                // Если есть другие кнопки, добавьте их здесь
-            }
-        }
+        setupDefaultButtons()
+
+        /** Добавляем базовые кнопки (включая иконки приложений) */
+        addButtonsToLayout()
+
+        Log.d("DYNAMIC_BUTTONS", "Динамические кнопки: $dynamicButtons")
+        allButtons = (defaultButtons + dynamicButtons).toMutableList()
 
         addVolumeSliderToLayout()
 
@@ -196,16 +196,16 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
         val wifiPanelButton = panelButtons[0]
         val bluetoothPanelButton = panelButtons[1]
 
-        // Управление доп.кнопками
+        /** Управление доп.кнопками */
         bm = ButtonManager(
             context = this,
             packageManager = packageManager,
-            buttons = buttons,
+            buttons = allButtons,
             settingsPanelController = this,
             buttonAssignments = buttonAssignments
         )
 
-        // Управление кнопками вспомогательной панели
+        /** Управление кнопками вспомогательной панели */
         pbm = PanelButtonManager(
             panelButtons = panelButtons,
             context = this,
@@ -219,13 +219,11 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
             volumeControllerListener = this
         )
 
-        // Добавляем базовые кнопки (включая иконки приложений)
-        addButtonsToLayout()
 
-        // Видимость кнопок, установленная пользователем
+        /** Видимость кнопок, установленная пользователем */
 //        bm.updateButtonVisibility(sharedPrefHandler)
 
-        // Добавляем доп.панель
+        /** Добавляем доп.панель */
         addSettingsPanelToLayout()
 
         settingsPanelLayout.findViewById<ImageButton>(R.id.volume_off_panel_btn).also { it ->
@@ -237,26 +235,54 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
             }
         }
 
-        // Установим изначальное состояние кнопки звука при запуске сервиса
+        /** Установим изначальное состояние кнопки звука при запуске сервиса */
         initMuteState()
 
-        // Создаём канал уведомления для Foreground Service
+        /** Создаём канал уведомления для Foreground Service */
         createNotificationChannel(serviceChannelId)
 
-        // Добавляем ползунок громкости
+        /** Добавляем ползунок громкости */
         addVolumeSliderToLayout()
 
-        // Ставим слушатели на вспомогательные кнопки
+        /** Ставим слушатели на вспомогательные кнопки */
         bm.setListenersForButtons()
 
-        // Слушатели на кнопки панели
+        /** Слушатели на кнопки панели */
         pbm.setListenersForPanelButtons()
 
-        // Применяем настройки WindowManager
+        /** Применяем настройки WindowManager */
         setupOverlayWindow()
 
-        // Установка слушателя на основную кнопку
+        /** Установка слушателя на основную кнопку */
         onMoveMainButtonLogic()
+
+        Log.d("CHECK_BUTTONS","$allButtons")
+        Log.d("CHECK_BUTTONS","$defaultButtons")
+        Log.d("CHECK_DYNAMIC_BUTTONS","$dynamicButtons")
+    }
+
+    private fun setupDefaultButtons() {
+        defaultButtons = mutableListOf(
+            floatingButtonLayout.findViewById(R.id.settings_button),
+            floatingButtonLayout.findViewById(R.id.additional_settings_button),
+            floatingButtonLayout.findViewById(R.id.back_button),
+            floatingButtonLayout.findViewById(R.id.home_button),
+            floatingButtonLayout.findViewById(R.id.show_all_running_apps_button),
+//            floatingButtonLayout.findViewById(R.id.magnifier_button)
+        )
+        // Ставим теги на кнопки, чтобы потом скрывать их через sharedpref
+        defaultButtons.forEachIndexed { _, button ->
+            when (button.id) {
+                R.id.settings_button -> button.tag = ButtonKeys.SETTINGS_BUTTON_KEY
+                R.id.additional_settings_button -> button.tag =
+                    ButtonKeys.ADDITIONAL_SETTINGS_BUTTON_KEY
+
+                R.id.back_button -> button.tag = ButtonKeys.BACK_BUTTON_KEY
+                R.id.home_button -> button.tag = ButtonKeys.HOME_BUTTON_KEY
+                R.id.show_all_running_apps_button -> button.tag = ButtonKeys.RECENT_APPS_BUTTON_KEY
+            }
+        }
+
     }
 
     private fun createAndAddMagnifierView() {
@@ -265,15 +291,15 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
         magnifierImageView = magnifierViewLayout.findViewById(R.id.magnifier_imageview)
         magnifierImageView.scaleType = ImageView.ScaleType.FIT_CENTER
 
-        magnifierViewParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
+        magnifierViewParams = LayoutParams(
+            LayoutParams.MATCH_PARENT,
+            LayoutParams.MATCH_PARENT,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                LayoutParams.TYPE_APPLICATION_OVERLAY
             } else {
-                WindowManager.LayoutParams.TYPE_PHONE
+                LayoutParams.TYPE_PHONE
             },
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -296,15 +322,15 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
     }
 
     private fun addSettingsPanelToLayout() {
-        panelParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
+        panelParams = LayoutParams(
+            LayoutParams.WRAP_CONTENT,
+            LayoutParams.WRAP_CONTENT,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                LayoutParams.TYPE_APPLICATION_OVERLAY
             } else {
-                WindowManager.LayoutParams.TYPE_PHONE
+                LayoutParams.TYPE_PHONE
             },
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         )
         // По умолчанию скрываем панель
@@ -332,12 +358,13 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
                 }
 
                 MotionEvent.ACTION_UP -> {
+                    val toggledButtonsAroundMainBtn: MutableList<View> = (defaultButtons + first4btns).toMutableList()
                     // Если кнопка не сдвинулась дальше 10 пикселей на любой из осей, то считать это нажатием.
                     if (!hasMoved && abs(initialTouchX - event.rawX) < 10 && abs(
                             initialTouchY - event.rawY
                         ) < 10
                     ) {
-                        toggleButtonsVisibility(buttons, mainButton)
+                        toggleButtonsVisibility(toggledButtonsAroundMainBtn, mainButton)
                         if (isSettingsPanelShown) {
                             settingsPanelLayout.visibility = View.GONE
                             isSettingsPanelShown = false
@@ -421,32 +448,66 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
         for (packageName in packageNames) {
             try {
                 val appIcon = pm.getApplicationIcon(packageName)
-                val newButton = ImageButton(this)
-                val size = 130
-
-                newButton.setImageDrawable(appIcon)
-                newButton.tag = packageName
-                newButton.scaleType = ImageView.ScaleType.CENTER_CROP// Добавьте эту строку
-                newButton.background = null
+                val newButton = ImageButton(this).apply {
+                    setImageDrawable(appIcon)
+                    tag = packageName
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    background = null
+                }
 
                 // Установка размеров для кнопки
-                val layoutParams = FrameLayout.LayoutParams(size, size)
+                val buttonSize = 130
+                val layoutParams = FrameLayout.LayoutParams(buttonSize, buttonSize)
                 newButton.layoutParams = layoutParams
 
-                // Добавление кнопки в layout и список
-                (floatingButtonLayout as FrameLayout).addView(newButton)
-                buttons.add(newButton)
-                for (button in buttons) {
-                    button.visibility = View.INVISIBLE
+                if (dynamicButtons.size <= 4) {
+                    first4btns = dynamicButtons
+                    second4btns = mutableListOf()
+                } else {
+                    first4btns = dynamicButtons.take(4).toMutableList()
+                    second4btns = dynamicButtons.drop(4).toMutableList()
                 }
+
+                // Определяем, в какой layout добавить новую кнопку
+                if (dynamicButtons.size < 4) {
+                    (floatingButtonLayout as FrameLayout).addView(newButton)
+                } else {
+                    (secondButtonLineLayout as FrameLayout).addView(newButton)
+                }
+
+                logChildViewsOfLayout(floatingButtonLayout as ViewGroup)
+                logChildViewsOfLayout(secondButtonLineLayout as ViewGroup)
+
+                // Добавляем кнопку в список динамических кнопок
+                dynamicButtons.add(newButton)
+                Log.d("CHECK_DYNAMIC_BTNS","$dynamicButtons")
+
             } catch (e: PackageManager.NameNotFoundException) {
                 e.printStackTrace()
+            }
+        }
+        // Устанавливаем видимость для всех кнопок на невидимо
+        allButtons.forEach {
+            it.visibility = View.INVISIBLE
+        }
+    }
+
+    private fun logChildViewsOfLayout(layout: ViewGroup) {
+        val childCount = layout.childCount
+        Log.d("$layout - LOG_LAYOUT", "Макет содержит $childCount дочерних элементов.")
+
+        for (i in 0 until childCount) {
+            val child = layout.getChildAt(i)
+            Log.d("$layout - LOG_LAYOUT", "Элемент $i: ${child.javaClass.simpleName}, ID: ${child.id}, Visibility: ${child.visibility}")
+
+            // Дополнительно можно проверить, является ли дочерний элемент кнопкой, и вывести его тег
+            if (child is ImageButton) {
+                Log.d("$layout - LOG_LAYOUT", "ImageButton с тегом: '${child.tag}'")
             }
         }
     }
 
     /* в разработке
-
 
     private fun setCollapsedParams(): WindowManager.LayoutParams {
         return WindowManager.LayoutParams(
@@ -464,23 +525,41 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
 
      */
 
-    private fun setExpandedParams(): WindowManager.LayoutParams {
-        return WindowManager.LayoutParams(
+    private fun setExpandedParams(): LayoutParams {
+        return LayoutParams(
             expandedLayoutDimens,
             expandedLayoutDimens,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                LayoutParams.TYPE_APPLICATION_OVERLAY
             } else {
-                WindowManager.LayoutParams.TYPE_PHONE
+                LayoutParams.TYPE_PHONE
             },
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         )
     }
 
     private fun setupOverlayWindow() {
         params = setExpandedParams()
-        windowManager.addView(floatingButtonLayout, params)
+        secondButtonLineParams = LayoutParams(
+            LayoutParams.WRAP_CONTENT,
+            LayoutParams.WRAP_CONTENT,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                LayoutParams.TYPE_PHONE
+            },
+            LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT
+        )
+        secondButtonLineParams.apply {
+            x = 300
+            y = 500
+        }
+        windowManager.apply {
+            addView(floatingButtonLayout, params)
+            addView(secondButtonLineLayout, secondButtonLineParams)
+        }
     }
 
     /**
@@ -500,11 +579,14 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
             ButtonKeys.ADDITIONAL_SETTINGS_BUTTON_KEY
         )
 
+        Log.d("SELECTED_BTNS", selectedButtons.toString())
+
         val visibleButtons = selectedButtons.filter { button ->
-            val key = button.tag.toString() // Например, button.tag хранит ключ для SharedPreferences
+            val key =
+                button.tag.toString() // Например, button.tag хранит ключ для SharedPreferences
             sharedPrefHandler.getButtonVisibility(key)
         }
-        Log.d("VISIBLE_BTN","${visibleButtons.size}")
+        Log.d("VISIBLE_BTN", "${visibleButtons.size}")
 
         hideButtonsRunnable = Runnable {
             toggleButtonsVisibility(visibleButtons, mainButton)
@@ -672,12 +754,20 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
 
     private fun getPackageNamesFromSharedPreferences(): List<String> {
         val keys = listOf(
-            "package_name_key_0", "package_name_key_1", "package_name_key_2", "package_name_key_3"
+            "package_name_key_0",
+            "package_name_key_1",
+            "package_name_key_2",
+            "package_name_key_3",
+            "package_name_key_4",
+            "package_name_key_5",
+            "package_name_key_6",
+            "package_name_key_7",
         )
         val packageNames = mutableListOf<String>()
         keys.forEach { key ->
             sharedPreferences.getString(key, null)?.let {
                 packageNames.add(it)
+                Log.d("SharedPreferences___", it)
             }
         }
         Log.d("проверка_", "$packageNames")
@@ -685,6 +775,7 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
         allEntries.forEach { (key, value) ->
             Log.d("SharedPreferences__", "$key: $value")
         }
+        Log.d("проверка_", "$packageNames")
         return packageNames
     }
 
@@ -889,15 +980,15 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
             toggleMuteVolume()
         }
 
-        volumeSliderParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
+        volumeSliderParams = LayoutParams(
+            LayoutParams.WRAP_CONTENT,
+            LayoutParams.WRAP_CONTENT,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                LayoutParams.TYPE_APPLICATION_OVERLAY
             } else {
-                WindowManager.LayoutParams.TYPE_PHONE
+                LayoutParams.TYPE_PHONE
             },
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         )
 
@@ -948,9 +1039,7 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
                 }
 
                 BluetoothAdapter.ACTION_STATE_CHANGED -> {
-                    val state =
-                        intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
-                    when (state) {
+                    when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
                         BluetoothAdapter.STATE_OFF -> {
                             updateBluetoothButtonState(false)
                         }
@@ -985,7 +1074,7 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
         if (!isSettingsPanelShown) {
             // Рассчитаем и установим новую позицию для панели настроек
             val settingsLayoutParams =
-                settingsPanelLayout.layoutParams as WindowManager.LayoutParams
+                settingsPanelLayout.layoutParams as LayoutParams
             settingsLayoutParams.apply {
                 x = xTrackingDotsForPanel + xOffset
                 y = yTrackingDotsForPanel + yOffset
@@ -1027,15 +1116,15 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
                 isBrightnessSliderShown = false
             }
             // Определяем параметры макета для ползунка громкости
-            val volumeParams = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
+            val volumeParams = LayoutParams(
+                LayoutParams.WRAP_CONTENT,
+                LayoutParams.WRAP_CONTENT,
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                    LayoutParams.TYPE_APPLICATION_OVERLAY
                 } else {
-                    WindowManager.LayoutParams.TYPE_PHONE
+                    LayoutParams.TYPE_PHONE
                 },
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT
             )
 
