@@ -36,11 +36,12 @@ import android.view.animation.AnimationUtils
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.Magnifier
 import androidx.annotation.RequiresApi
-import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.constraintlayout.widget.Group
 import androidx.core.app.NotificationCompat
+import androidx.core.view.contains
 import com.google.android.material.slider.Slider
 import ru.ikar.floatingbutton_ikar.R
 import ru.ikar.floatingbutton_ikar.buttons.ButtonManager
@@ -55,7 +56,8 @@ import kotlin.math.abs
 
 
 class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
-    BluetoothStateUpdater, SettingsPanelController, VolumeControllerListener {
+    BluetoothStateUpdater, SettingsPanelController, VolumeControllerListener,
+    SecondButtonLineController {
 
     private var initialX: Int = 0
     private var initialY: Int = 0
@@ -71,7 +73,7 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
     private var hasMoved = false
     private lateinit var pm: PackageManager
     private lateinit var defaultButtons: MutableList<View>
-    private val dynamicButtons: MutableList<View> = mutableListOf()
+    private var dynamicButtons: MutableList<View> = mutableListOf()
     private var allButtons = mutableListOf<View>()
     private lateinit var panelButtons: List<View>
     private lateinit var windowManager: WindowManager
@@ -120,6 +122,8 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
     private lateinit var secondButtonLineParams: LayoutParams
     private var first4btns = mutableListOf<View>()
     private var second4btns = mutableListOf<View>()
+    private lateinit var verticalLayoutForButtons: LinearLayout
+    private var isSecondButtonLineShown = false
 
     companion object {
         const val EXTRA_RESULT_CODE = "EXTRA_RESULT_CODE"
@@ -168,15 +172,27 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
         brightnessSliderLayout =
             LayoutInflater.from(this).inflate(R.layout.brightness_slider_layout, null)
         secondButtonLineLayout =
-            LayoutInflater.from(this).inflate(R.layout.second_line_buttons, null)
+            LayoutInflater.from(this).inflate(R.layout.second_line_buttons, null) as ViewGroup
+
+//        windowManager.addView(secondButtonLineLayout, secondButtonLineLayoutParams)
 
         setupDefaultButtons()
+
+        /** Применяем настройки WindowManager */
+        setupOverlayWindow()
+
+        /** Добавляем вторую View с кнопками */
+        addSecondButtonLineToLayout()
 
         /** Добавляем базовые кнопки (включая иконки приложений) */
         addButtonsToLayout()
 
         Log.d("DYNAMIC_BUTTONS", "Динамические кнопки: $dynamicButtons")
         allButtons = (defaultButtons + dynamicButtons).toMutableList()
+        allButtons.forEach {
+            println(it.tag)
+            Log.d("ALL_BTNS_TAG", "${it.tag}")
+        }
 
         addVolumeSliderToLayout()
 
@@ -250,15 +266,12 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
         /** Слушатели на кнопки панели */
         pbm.setListenersForPanelButtons()
 
-        /** Применяем настройки WindowManager */
-        setupOverlayWindow()
-
         /** Установка слушателя на основную кнопку */
         onMoveMainButtonLogic()
 
-        Log.d("CHECK_BUTTONS","$allButtons")
-        Log.d("CHECK_BUTTONS","$defaultButtons")
-        Log.d("CHECK_DYNAMIC_BUTTONS","$dynamicButtons")
+        Log.d("CHECK_BUTTONS", "$allButtons")
+        Log.d("CHECK_BUTTONS", "$defaultButtons")
+        Log.d("CHECK_DYNAMIC_BUTTONS", "$dynamicButtons")
     }
 
     private fun setupDefaultButtons() {
@@ -282,7 +295,6 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
                 R.id.show_all_running_apps_button -> button.tag = ButtonKeys.RECENT_APPS_BUTTON_KEY
             }
         }
-
     }
 
     private fun createAndAddMagnifierView() {
@@ -339,6 +351,19 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
         windowManager.addView(settingsPanelLayout, panelParams)
     }
 
+    private fun addSecondButtonLineToLayout() {
+        verticalLayoutForButtons = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+            )
+        }
+        secondButtonLineLayout.visibility = View.GONE
+        isSecondButtonLineShown = false
+        (secondButtonLineLayout as ViewGroup).addView(verticalLayoutForButtons)
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     private fun onMoveMainButtonLogic() {
         floatingButtonLayout.setOnTouchListener { _, event ->
@@ -358,7 +383,8 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
                 }
 
                 MotionEvent.ACTION_UP -> {
-                    val toggledButtonsAroundMainBtn: MutableList<View> = (defaultButtons + first4btns).toMutableList()
+                    val toggledButtonsAroundMainBtn: MutableList<View> =
+                        (defaultButtons + first4btns).toMutableList()
                     // Если кнопка не сдвинулась дальше 10 пикселей на любой из осей, то считать это нажатием.
                     if (!hasMoved && abs(initialTouchX - event.rawX) < 10 && abs(
                             initialTouchY - event.rawY
@@ -377,6 +403,10 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
                             brightnessSliderLayout.visibility = View.GONE
                             isBrightnessSliderShown = false
                         }
+//                        if (isSecondButtonLineShown) {
+//                            secondButtonLineLayout.visibility = View.GONE
+//                            isSecondButtonLineShown = false
+//                        }
                         return@setOnTouchListener false
                     } else {
                         // Сохраняем и возвращаем в лямбду последнее касание.
@@ -404,6 +434,10 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
                         updatePanelPosition()
                     }
 
+                    if (isSecondButtonLineShown) {
+                        updateSecondButtonsLinePosition()
+                    }
+
                     if (isVolumeSliderShown) {
                         volumeSliderParams.x = xMiddleScreenDot
                         volumeSliderParams.y = yMiddleScreenDot + 300
@@ -425,13 +459,17 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
 
     // Функция для обновления позиции панели
     private fun updatePanelPosition() {
-        val offset = convertDpToPixel(100, this) // Или любой другой нужный вам отступ
-//        val panelLayoutParams = settingsPanelLayout.layoutParams as WindowManager.LayoutParams
-//        panelLayoutParams.x = params.x + offset
-//        panelLayoutParams.y = params.y
+        val offset = convertDpToPixel(100, this)
         panelParams.x = params.x + offset
         panelParams.y = params.y
         windowManager.updateViewLayout(settingsPanelLayout, panelParams)
+    }
+
+    private fun updateSecondButtonsLinePosition() {
+        val offset = convertDpToPixel(100, this)
+        secondButtonLineParams.x = params.x - offset
+        secondButtonLineParams.y = params.y
+        windowManager.updateViewLayout(secondButtonLineLayout, secondButtonLineParams)
     }
 
     private fun registerReceiverOnService() {
@@ -445,6 +483,13 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
     }
 
     private fun addButtonsToLayout() {
+        val isSecondLinearLayoutContainsButtons = mutableListOf<Boolean>()
+        var linearLayoutBtnsCount = 0
+        val buttonDim = 36
+
+        // Смещение на 10 пикселей
+        val shiftCorrection = 10
+
         for (packageName in packageNames) {
             try {
                 val appIcon = pm.getApplicationIcon(packageName)
@@ -454,11 +499,15 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
                     scaleType = ImageView.ScaleType.CENTER_CROP
                     background = null
                 }
+                Log.d("TAG_", newButton.tag.toString())
 
                 // Установка размеров для кнопки
                 val buttonSize = 130
                 val layoutParams = FrameLayout.LayoutParams(buttonSize, buttonSize)
                 newButton.layoutParams = layoutParams
+
+                // Добавляем кнопку в список динамических кнопок
+                dynamicButtons.add(newButton)
 
                 if (dynamicButtons.size <= 4) {
                     first4btns = dynamicButtons
@@ -469,26 +518,124 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
                 }
 
                 // Определяем, в какой layout добавить новую кнопку
-                if (dynamicButtons.size < 4) {
+                if (dynamicButtons.size <= 4) {
                     (floatingButtonLayout as FrameLayout).addView(newButton)
                 } else {
-                    (secondButtonLineLayout as FrameLayout).addView(newButton)
+//                    (secondButtonLineLayout as FrameLayout).addView(newButton)
+                    verticalLayoutForButtons.addView(newButton)
                 }
+
+                isSecondLinearLayoutContainsButtons.add(verticalLayoutForButtons.contains(newButton))
+
+                Log.d("DYNAMIC_BTN_SIZE", "${dynamicButtons.size}")
 
                 logChildViewsOfLayout(floatingButtonLayout as ViewGroup)
                 logChildViewsOfLayout(secondButtonLineLayout as ViewGroup)
 
-                // Добавляем кнопку в список динамических кнопок
-                dynamicButtons.add(newButton)
-                Log.d("CHECK_DYNAMIC_BTNS","$dynamicButtons")
+                Log.d("CHECK_DYNAMIC_BTNS", "$dynamicButtons")
+                Log.d("CHECK_ALL_BTNS", "$allButtons")
+                Log.d("CHECK_BTN_TAG", "${newButton.tag}")
+
+                Log.d("LAYOUT_SIZE", "${verticalLayoutForButtons.contains(newButton)}")
 
             } catch (e: PackageManager.NameNotFoundException) {
                 e.printStackTrace()
             }
         }
+//        dynamicButtons = (first4btns + second4btns).toMutableList()
+//        dynamicButtons.forEach {
+//            it.visibility = View.GONE
+//        }
+
         // Устанавливаем видимость для всех кнопок на невидимо
         allButtons.forEach {
-            it.visibility = View.INVISIBLE
+            it.visibility = View.GONE
+        }
+
+        // Посчитаем, сколько кнопок внутри verticalLayoutForButtons по флагам true
+        linearLayoutBtnsCount = isSecondLinearLayoutContainsButtons.count { it == true }
+
+        // Исходя из количества кнопок, отрисуем высоту secondButtonLineLayout
+        when (linearLayoutBtnsCount) {
+            1 -> {
+                secondButtonLineParams = WindowManager.LayoutParams(
+                    LayoutParams.WRAP_CONTENT,
+                    convertDpToPixel(buttonDim + shiftCorrection, applicationContext),
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        LayoutParams.TYPE_APPLICATION_OVERLAY
+                    } else {
+                        LayoutParams.TYPE_PHONE
+                    },
+                    LayoutParams.FLAG_NOT_FOCUSABLE,
+                    PixelFormat.TRANSLUCENT
+                )
+                secondButtonLineParams.apply {
+                    x = 400
+                    y = 400
+                }
+                windowManager.updateViewLayout(secondButtonLineLayout, secondButtonLineParams)
+            }
+
+            2 -> {
+                secondButtonLineParams = WindowManager.LayoutParams(
+                    LayoutParams.WRAP_CONTENT,
+                    convertDpToPixel((buttonDim + shiftCorrection) * 2, applicationContext),
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        LayoutParams.TYPE_APPLICATION_OVERLAY
+                    } else {
+                        LayoutParams.TYPE_PHONE
+                    },
+                    LayoutParams.FLAG_NOT_FOCUSABLE,
+                    PixelFormat.TRANSLUCENT
+                )
+                secondButtonLineParams.apply {
+                    x = 400
+                    y = 400
+                }
+                windowManager.updateViewLayout(secondButtonLineLayout, secondButtonLineParams)
+            }
+
+            3 -> {
+                secondButtonLineParams = WindowManager.LayoutParams(
+                    LayoutParams.WRAP_CONTENT,
+                    convertDpToPixel((buttonDim + shiftCorrection) * 3, applicationContext),
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        LayoutParams.TYPE_APPLICATION_OVERLAY
+                    } else {
+                        LayoutParams.TYPE_PHONE
+                    },
+                    LayoutParams.FLAG_NOT_FOCUSABLE,
+                    PixelFormat.TRANSLUCENT
+                )
+                secondButtonLineParams.apply {
+                    x = 400
+                    y = 400
+                }
+                windowManager.updateViewLayout(secondButtonLineLayout, secondButtonLineParams)
+            }
+
+            4 -> {
+                secondButtonLineParams = WindowManager.LayoutParams(
+                    LayoutParams.WRAP_CONTENT,
+                    convertDpToPixel((buttonDim + shiftCorrection) * 4, applicationContext),
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        LayoutParams.TYPE_APPLICATION_OVERLAY
+                    } else {
+                        LayoutParams.TYPE_PHONE
+                    },
+                    LayoutParams.FLAG_NOT_FOCUSABLE,
+                    PixelFormat.TRANSLUCENT
+                )
+                secondButtonLineParams.apply {
+                    x = 400
+                    y = 400
+                }
+                windowManager.updateViewLayout(secondButtonLineLayout, secondButtonLineParams)
+            }
+
+            else -> {
+                secondButtonLineLayout.visibility = View.GONE
+            }
         }
     }
 
@@ -498,7 +645,10 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
 
         for (i in 0 until childCount) {
             val child = layout.getChildAt(i)
-            Log.d("$layout - LOG_LAYOUT", "Элемент $i: ${child.javaClass.simpleName}, ID: ${child.id}, Visibility: ${child.visibility}")
+            Log.d(
+                "$layout - LOG_LAYOUT",
+                "Элемент $i: ${child.javaClass.simpleName}, ID: ${child.id}, Visibility: ${child.visibility}"
+            )
 
             // Дополнительно можно проверить, является ли дочерний элемент кнопкой, и вывести его тег
             if (child is ImageButton) {
@@ -542,7 +692,7 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
     private fun setupOverlayWindow() {
         params = setExpandedParams()
         secondButtonLineParams = LayoutParams(
-            LayoutParams.WRAP_CONTENT,
+            convertDpToPixel(36, this),
             LayoutParams.WRAP_CONTENT,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -570,7 +720,6 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
      * @param mainButton Центральная кнопка, вокгруг которой рендерятся доп.кнопки.
      */
     private fun toggleButtonsVisibility(selectedButtons: List<View>, mainButton: View) {
-
         val buttonKeysList = listOf(
             ButtonKeys.HOME_BUTTON_KEY,
             ButtonKeys.BACK_BUTTON_KEY,
@@ -593,6 +742,11 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
         }
         // Убедимся, отменены ли предыдущие операции со сворачиванием
         if (isExpanded) {
+            isSecondButtonLineShown = false
+            Log.d("isSecondButtonLineShown_", "$isSecondButtonLineShown when collapsing")
+            showOrHideSecondButtonLine(100, 100)
+            Log.d("isSecondButtonLineShown_", "${secondButtonLineLayout.visibility} when collapsing")
+
             // Кнопки развёрнуты. Надо свернуть
             for (button in visibleButtons) {
                 // Возьмём центр основной кнопки за целевые координаты
@@ -606,6 +760,11 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
             }
             // Если панель отображается и кнопки собираются свернуться, скрыть панель
         } else {
+            isSecondButtonLineShown = true
+            Log.d("isSecondButtonLineShown_", "$isSecondButtonLineShown when expanded")
+            showOrHideSecondButtonLine(100, 100)
+            Log.d("isSecondButtonLineShown_", "${secondButtonLineLayout.visibility} when expanded")
+
             // Кнопки уже свёрнуты, надо их развернуть
             for ((index, button) in visibleButtons.withIndex()) {
                 // Рассчитаем последнюю позицию кнопки
@@ -743,6 +902,10 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
             windowManager.removeView(magnifierViewLayout)
         }
         projector.dismiss()
+
+        if (::secondButtonLineLayout.isInitialized) {
+            windowManager.removeView(secondButtonLineLayout)
+        }
 
         try {
             unregisterReceiver(receiver)
@@ -1039,7 +1202,10 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
                 }
 
                 BluetoothAdapter.ACTION_STATE_CHANGED -> {
-                    when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
+                    when (intent.getIntExtra(
+                        BluetoothAdapter.EXTRA_STATE,
+                        BluetoothAdapter.ERROR
+                    )) {
                         BluetoothAdapter.STATE_OFF -> {
                             updateBluetoothButtonState(false)
                         }
@@ -1153,5 +1319,23 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
 
     override fun isVolumeSliderShown(): Boolean {
         return isVolumeSliderShown
+    }
+
+    override fun showOrHideSecondButtonLine(xOffset: Int, yOffset: Int) {
+        // Рассчитаем и установим новую позицию
+        val secondButtonsLayoutParams = secondButtonLineLayout.layoutParams as LayoutParams
+        secondButtonsLayoutParams.apply {
+            x = params.x - xOffset
+            y = params.y - yOffset
+        }
+        if (isSecondButtonLineShown) {
+            // Показываем
+            secondButtonLineLayout.visibility = View.VISIBLE
+//            windowManager.updateViewLayout(secondButtonLineLayout, secondButtonsLayoutParams)
+            updateSecondButtonsLinePosition()
+        } else {
+            secondButtonLineLayout.visibility = View.GONE
+            windowManager.updateViewLayout(secondButtonLineLayout, secondButtonsLayoutParams)
+        }
     }
 }

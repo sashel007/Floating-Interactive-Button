@@ -28,7 +28,7 @@ class ButtonManager(
         Log.d("ButtonManager", "Button assignments: $buttonAssignments")
     }
 
-    val buttonKeysList = listOf(
+    private val buttonKeysList = listOf(
         ButtonKeys.HOME_BUTTON_KEY,
         ButtonKeys.BACK_BUTTON_KEY,
         ButtonKeys.RECENT_APPS_BUTTON_KEY,
@@ -46,9 +46,13 @@ class ButtonManager(
     fun setListenersForButtons() {
         buttons.forEach { button ->
             button.setOnClickListener {
-                val resourceName = button.resources.getResourceEntryName(button.id)
-                val action = buttonAssignments[resourceName]
-                Log.d("ButtonManager", "Button: $resourceName, Action: $action")
+                Log.d("ButtonaManager_button.id", "${button.id}")
+//                val resourceName = button.resources.getResourceEntryName(button.id)
+//                val action = buttonAssignments[resourceName]
+//                Log.d("ButtonManager", "Button: $resourceName, Action: $action")
+
+                val action = button.tag.toString()
+                Log.d("BTN_MNG_TAG", action)
 
                 performButtonAction(action, button)
             }
@@ -56,7 +60,7 @@ class ButtonManager(
     }
 
     private fun performButtonAction(action: String?, button: View) {
-        Log.d("ButtonManager", "Performing action: $action for button: ${button.resources.getResourceEntryName(button.id)}")
+//        Log.d("ButtonManager", "Performing action: $action for button: ${button.resources.getResourceEntryName(button.id)}")
         when (action) {
             "settings_value" -> {
                 SettingsButton(context).apply {
