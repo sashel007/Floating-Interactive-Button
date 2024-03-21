@@ -20,7 +20,7 @@ class ButtonManager(
     private val packageManager: PackageManager,
     private var buttons: MutableList<View>,
     private val settingsPanelController: SettingsPanelController,
-    private val buttonAssignments: Map<String, String>
+    buttonAssignments: Map<String, String>
 ) {
     private val animator = ButtonAnimator(context)
 
@@ -62,35 +62,35 @@ class ButtonManager(
     private fun performButtonAction(action: String?, button: View) {
 //        Log.d("ButtonManager", "Performing action: $action for button: ${button.resources.getResourceEntryName(button.id)}")
         when (action) {
-            "settings_value" -> {
+            "settings_button" /** "settings_value" */ -> {
                 SettingsButton(context).apply {
                     animateButton(button)
                     onClick()
                 }
             }
 
-            "home_value" -> {
+            "home_button"/** "home_value" */ -> {
                 HomeButton(context).apply {
                     animateButton(button)
                     onClick()
                 }
             }
 
-            "back_value" -> {
+            "back_button" /** "back_value" */ -> {
                 BackButton(context).apply {
                     animateButton(button)
                     onClick()
                 }
             }
 
-            "recentapps_value" -> {
+            "show_all_running_apps_button" /** "recentapps_value" */ -> {
                 ShowAllRunningAppsButton(context).apply {
                     animateButton(button)
                     onClick()
                 }
             }
 
-            "additionalsettings_value" -> {
+            "additional_settings_button" /** "additionalsettings_value" */ -> {
                 AdditionalSettingsButton(context, settingsPanelController).apply {
                     animateButton(button)
                     onClick()

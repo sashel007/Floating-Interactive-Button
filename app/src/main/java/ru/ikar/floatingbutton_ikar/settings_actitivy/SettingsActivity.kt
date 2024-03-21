@@ -59,15 +59,15 @@ class SettingsActivity : ComponentActivity() {
     private lateinit var sharedPreferenceLogger: SharedPreferencesLogger
 
     companion object {
-        const val selectedLineSharedPrefName = "app_package_names"
-        const val buttonManagerSharedPrefName = "button_manager_names"
+        const val SELECTED_LINE_SHAREDPREFNAME = "app_package_names"
+        const val BUTTON_MANAGER_SHAREDPREFNAME = "button_manager_names"
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        selectedLineSharedPrefObj = SharedPrefHandler(this, selectedLineSharedPrefName)
-        buttonManagerSharedPrefObj = SharedPrefHandler(this, buttonManagerSharedPrefName)
+        selectedLineSharedPrefObj = SharedPrefHandler(this, SELECTED_LINE_SHAREDPREFNAME)
+        buttonManagerSharedPrefObj = SharedPrefHandler(this, BUTTON_MANAGER_SHAREDPREFNAME)
         selectedLineSharedPref = selectedLineSharedPrefObj.sharedPref
         buttonManagerSharedPref = buttonManagerSharedPrefObj.sharedPref
 
@@ -132,7 +132,7 @@ class SettingsActivity : ComponentActivity() {
             )
         }
 
-        sharedPreferenceLogger = SharedPreferencesLogger(this, buttonManagerSharedPrefName)
+        sharedPreferenceLogger = SharedPreferencesLogger(this, BUTTON_MANAGER_SHAREDPREFNAME)
 
         // Проверка разрешения на отображение поверх других приложений.
         if (!Settings.canDrawOverlays(this)) {

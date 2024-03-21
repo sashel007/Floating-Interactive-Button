@@ -47,8 +47,8 @@ import ru.ikar.floatingbutton_ikar.R
 import ru.ikar.floatingbutton_ikar.buttons.ButtonManager
 import ru.ikar.floatingbutton_ikar.buttons.PanelButtonManager
 import ru.ikar.floatingbutton_ikar.projector.Projector
-import ru.ikar.floatingbutton_ikar.settings_actitivy.SettingsActivity.Companion.buttonManagerSharedPrefName
-import ru.ikar.floatingbutton_ikar.settings_actitivy.SettingsActivity.Companion.selectedLineSharedPrefName
+import ru.ikar.floatingbutton_ikar.settings_actitivy.SettingsActivity.Companion.BUTTON_MANAGER_SHAREDPREFNAME
+import ru.ikar.floatingbutton_ikar.settings_actitivy.SettingsActivity.Companion.SELECTED_LINE_SHAREDPREFNAME
 import ru.ikar.floatingbutton_ikar.sharedpreferences.ButtonKeys
 import ru.ikar.floatingbutton_ikar.sharedpreferences.ButtonPreferenceUtil
 import ru.ikar.floatingbutton_ikar.sharedpreferences.SharedPrefHandler
@@ -120,16 +120,16 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
     private lateinit var sharedPrefHandler: SharedPrefHandler
     private lateinit var secondButtonLineLayout: View
     private lateinit var secondButtonLineParams: LayoutParams
-    private var first4btns = mutableListOf<View>()
-    private var second4btns = mutableListOf<View>()
+    private var first4buttons = mutableListOf<View>()
+    private var second4buttons = mutableListOf<View>()
     private lateinit var verticalLayoutForButtons: LinearLayout
     private var isSecondButtonLineShown = false
 
     companion object {
         const val EXTRA_RESULT_CODE = "EXTRA_RESULT_CODE"
         const val EXTRA_RESULT_INTENT = "EXTRA_RESULT_INTENT"
-        const val navigationSettings = "com.xbh.navigation.settings"
-        const val serviceChannelId = "fab_service_channel"
+        const val NAVIGATION_SETTINGS = "com.xbh.navigation.settings"
+        const val SERVICE_CHANNEL_ID = "fab_service_channel"
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -144,12 +144,12 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
         pm = this.packageManager
         windowManager =
             getSystemService(WINDOW_SERVICE) as WindowManager // инициализация WindowManager для кастомных настроек отображения.
-        sharedPreferences = getSharedPreferences(selectedLineSharedPrefName, Context.MODE_PRIVATE)
+        sharedPreferences = getSharedPreferences(SELECTED_LINE_SHAREDPREFNAME, Context.MODE_PRIVATE)
         packageNames = getPackageNamesFromSharedPreferences()
         Log.d("PACKAGE_NAMES", "$packageNames")
         val buttonPreferenceUtl = ButtonPreferenceUtil(this)
         val buttonAssignments = buttonPreferenceUtl.getButtonAssignments()
-        sharedPrefHandler = SharedPrefHandler(this, buttonManagerSharedPrefName)
+        sharedPrefHandler = SharedPrefHandler(this, BUTTON_MANAGER_SHAREDPREFNAME)
 
         /** Регистрация сервиса для пяти касаний */
         registerReceiverOnService()
@@ -209,6 +209,7 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
             settingsPanelLayout.findViewById(R.id.projector_panel_btn)
 //            settingsPanelLayout.findViewById(R.id.screenshot_panel_btn)
         )
+
         val wifiPanelButton = panelButtons[0]
         val bluetoothPanelButton = panelButtons[1]
 
@@ -235,7 +236,6 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
             volumeControllerListener = this
         )
 
-
         /** Видимость кнопок, установленная пользователем */
 //        bm.updateButtonVisibility(sharedPrefHandler)
 
@@ -255,7 +255,7 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
         initMuteState()
 
         /** Создаём канал уведомления для Foreground Service */
-        createNotificationChannel(serviceChannelId)
+        createNotificationChannel(SERVICE_CHANNEL_ID)
 
         /** Добавляем ползунок громкости */
         addVolumeSliderToLayout()
@@ -384,7 +384,7 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
 
                 MotionEvent.ACTION_UP -> {
                     val toggledButtonsAroundMainBtn: MutableList<View> =
-                        (defaultButtons + first4btns).toMutableList()
+                        (defaultButtons + first4buttons).toMutableList()
                     // Если кнопка не сдвинулась дальше 10 пикселей на любой из осей, то считать это нажатием.
                     if (!hasMoved && abs(initialTouchX - event.rawX) < 10 && abs(
                             initialTouchY - event.rawY
@@ -510,11 +510,11 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
                 dynamicButtons.add(newButton)
 
                 if (dynamicButtons.size <= 4) {
-                    first4btns = dynamicButtons
-                    second4btns = mutableListOf()
+                    first4buttons = dynamicButtons
+                    second4buttons = mutableListOf()
                 } else {
-                    first4btns = dynamicButtons.take(4).toMutableList()
-                    second4btns = dynamicButtons.drop(4).toMutableList()
+                    first4buttons = dynamicButtons.take(4).toMutableList()
+                    second4buttons = dynamicButtons.drop(4).toMutableList()
                 }
 
                 // Определяем, в какой layout добавить новую кнопку
@@ -760,7 +760,13 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
             }
             // Если панель отображается и кнопки собираются свернуться, скрыть панель
         } else {
-            isSecondButtonLineShown = true
+            if (dynamicButtons.size > 4) {
+                Log.d("DYNAMIC_BTN_IF", "${dynamicButtons.size}")
+                isSecondButtonLineShown = true
+            } else {
+                secondButtonLineLayout.visibility = View.GONE
+                isSecondButtonLineShown = false
+            }
             Log.d("isSecondButtonLineShown_", "$isSecondButtonLineShown when expanded")
             showOrHideSecondButtonLine(100, 100)
             Log.d("isSecondButtonLineShown_", "${secondButtonLineLayout.visibility} when expanded")
@@ -868,11 +874,7 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
     }
 
     private fun animateButton(button: View) {
-        button.startAnimation(
-            AnimationUtils.loadAnimation(
-                this, R.anim.button_animation
-            )
-        )
+        button.startAnimation(AnimationUtils.loadAnimation(this, R.anim.button_animation))
     }
 
     /**
@@ -962,7 +964,7 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
-                serviceChannelId,
+                SERVICE_CHANNEL_ID,
                 "Foreground Service Channel",
                 NotificationManager.IMPORTANCE_DEFAULT
             )
@@ -970,7 +972,7 @@ class FloatingButtonService : Service(), MuteStateListener, WifiStateUpdater,
             manager.createNotificationChannel(serviceChannel)
 
             val notification =
-                NotificationCompat.Builder(this, serviceChannelId).setContentTitle("FAB_Service")
+                NotificationCompat.Builder(this, SERVICE_CHANNEL_ID).setContentTitle("FAB_Service")
                     .setContentText("Сервис запущен").setSmallIcon(R.drawable.ikar_fab_img).build()
 
             // Запуск сервиса в переднем плане с указанием типа FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION

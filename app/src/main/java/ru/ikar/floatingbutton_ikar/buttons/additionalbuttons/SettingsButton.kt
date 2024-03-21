@@ -10,7 +10,7 @@ import ru.ikar.floatingbutton_ikar.service.buttons.ButtonAnimator
 class SettingsButton(private val context: Context) : Button {
     private val animator = ButtonAnimator(context)
     override fun onClick() {
-        val navSetIntent = Intent(FloatingButtonService.navigationSettings)
+        val navSetIntent = Intent(FloatingButtonService.NAVIGATION_SETTINGS)
         context.sendBroadcast(navSetIntent)
     }
 
